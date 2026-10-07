@@ -1,6 +1,8 @@
 # 大文件与临时产物不入库
 dmg/
 filmcraft/
+android-activity/
+filmcraft-web/
 *.dmg
 *.zip
 target/
@@ -8,5 +10,4 @@ target/
 .gradle/
 **/build/
 local.properties
-gradle/wrapper/gradle-wrapper.jar
 .DS_Store
