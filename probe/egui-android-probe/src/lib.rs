@@ -28,6 +28,10 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
         android_logger::Config::default().with_max_level(log::LevelFilter::Info),
     );
     log::info!("egui-android-probe: android_main entered");
+    // 模拟器（SwiftShader/ANGLE）上 wgpu 的 Vulkan 路径在适配器枚举后 SIGSEGV，
+    // 先强制 GLES 后端（真机可去掉这行或按需选择）。
+    // SAFETY: 单线程启动阶段设置环境变量，Android 上可用；edition 2021 下非 unsafe。
+    std::env::set_var("WGPU_BACKEND", "gl");
     let options = eframe::NativeOptions {
         android_app: Some(app),
         ..Default::default()
