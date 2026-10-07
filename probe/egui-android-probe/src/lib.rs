@@ -1,5 +1,8 @@
 //! 最小 eframe + wgpu Android 宿主（GameActivity）
 //! 目的：验证 FilmCraft 同款技术链路（eframe 0.36 + wgpu + winit 0.30 + GameActivity）在 Android 上可运行。
+//!
+//! 注意：eframe 0.36 的 `App` trait 是 `logic`（每帧逻辑）+ `ui`（必需，画界面）两段式，
+//! 不是旧版的 `update(&Context)`。
 
 use eframe::egui;
 
@@ -8,15 +11,13 @@ struct ProbeApp {
 }
 
 impl eframe::App for ProbeApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.frames += 1;
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("egui + wgpu on Android");
-            ui.separator();
-            ui.label(format!("frame: {}", self.frames));
-            ui.label("FilmCraft 同款链路：eframe 0.36 + wgpu + winit 0.30 + GameActivity");
-        });
-        ctx.request_repaint_after(std::time::Duration::from_millis(250));
+        ui.heading("egui + wgpu on Android");
+        ui.separator();
+        ui.label(format!("frame: {}", self.frames));
+        ui.label("FilmCraft 同款链路：eframe 0.36 + wgpu + winit 0.30 + GameActivity");
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(250));
     }
 }
 

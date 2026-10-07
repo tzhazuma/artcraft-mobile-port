@@ -3,8 +3,11 @@ dmg/
 filmcraft/
 android-activity/
 filmcraft-web/
+tools/
 *.dmg
 *.zip
+*.so
+**/jniLibs/
 target/
 **/target/
 .gradle/
