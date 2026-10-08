@@ -140,7 +140,11 @@ adb shell am start -n ai.storyteller.filmcraft/.MainActivity
 1. **先量尺寸再改**：手机（1080×2400 @420dpi）上 egui 的逻辑视口只有 **411×914 pt**（`pixels_per_point = 2.625`），而桌面布局是按 ≥900×560 pt 设计的 —— 也就是说手机上横向只有设计宽度的一半。
 2. **单纯放大反而更糟**：试过 `pixels_per_point × 1.35`（截图 `shots/stage7-filmcraft-touch.png`），逻辑视口缩到约 305×677 pt，面板互相重叠、时间线被压成一条 —— 所以 `TOUCH_SCALE` 定回 **1.0**，只保留「放大命中目标」的部分：`interact_size = 40pt`（约 105 px 物理尺寸）、`button_padding`、`item_spacing`、以及「手指停住才显示 tooltip」。
 
-**真正的触屏 UI 不是缩放问题，是布局问题**（下一步工作）：底部大按钮工具条替代顶部菜单；一次只显示一个面板；时间线占满宽度；把 143 个快捷键换成手势 + 长按菜单。探针里已验证过这些交互（§5.2）。
+**真正的触屏 UI 不是缩放问题，是布局问题** —— 已用上游自己的 workspace API 落地了第一步（**不改 upstream 代码**）：
+Android 外壳在启动时通过 `FilmcraftApp::set_workspaces` 安装一个 `Phone` 工作区
+（`DockNode::Split { vertical: true, Ratio(0.42), Program / Tabs[Timeline, Project, Tools] }`），
+手机上一屏就是「监视器 + 时间线」，项目箱与工具收进底部标签页（截图 `shots/stage11-phone-workspace2.png`）。
+后续可继续做：把顶部菜单换成手势 + 长按菜单、把 143 个快捷键映射成触屏操作。
 
 顺带验证：**系统 CJK 字体加载生效**（logcat: `loaded system CJK font /system/fonts/NotoSansCJK-Regular.ttc`）。
 

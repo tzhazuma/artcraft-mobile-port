@@ -24,6 +24,7 @@ use std::sync::mpsc::Sender;
 
 use filmcraft_engine::Session;
 use filmcraft_engine::autosave::AutosaveConfig;
+use filmcraft_ui_egui::dock::WorkspacePrefs;
 use filmcraft_ui_egui::{ControlRequest, FilmcraftApp};
 use winit::platform::android::activity::AndroidApp;
 
@@ -140,6 +141,22 @@ fn install_system_font(ctx: &egui::Context) {
     log::warn!("filmcraft-android: no system CJK font found; CJK text will be tofu");
 }
 
+/// A phone-sized workspace: the program monitor on top and the timeline below, with the project
+/// bin and tools as tabs of the same dock. The desktop presets are built for ≥900×560 pt while a
+/// phone gives ~411×914 pt (see `EXPERIMENT.md` §5.5), so the shell installs this layout with the
+/// app's own workspace API instead of rearranging any panel code.
+fn phone_workspace() -> WorkspacePrefs {
+    use filmcraft_ui_egui::dock::{DockNode, PanelKind, SavedWorkspace, SplitSize};
+
+    let monitor = DockNode::Tabs { panels: vec![PanelKind::Program], active: 0 };
+    let lower = DockNode::Tabs { panels: vec![PanelKind::Timeline, PanelKind::Project, PanelKind::Tools], active: 0 };
+    let layout = DockNode::Split { vertical: true, size: SplitSize::Ratio(0.42), a: Box::new(monitor), b: Box::new(lower) };
+    WorkspacePrefs {
+        saved: vec![SavedWorkspace { name: "Phone".to_owned(), layout: serde_json::to_value(&layout).unwrap_or_default() }],
+        current: "Phone".to_owned(),
+    }
+}
+
 /// Start the SAF picker for one of FilmCraft's own file dialogs.
 ///
 /// `HostHooks` are synchronous (they answer "which files?" inside the frame), and a picker cannot
@@ -220,6 +237,10 @@ fn android_main(app: AndroidApp) {
             let mut app = FilmcraftApp::new(session).with_control(requests);
             if let Some(rs) = cc.wgpu_render_state.clone() {
                 app.set_wgpu(rs);
+            }
+            // A layout that fits a phone; the desktop presets do not (see `phone_workspace`).
+            if let Err(e) = app.set_workspaces(phone_workspace()) {
+                log::warn!("filmcraft-android: could not install the phone workspace: {e}");
             }
             // The app's own file dialogs (File ▸ Import, Import ▸ Media File, Open Project, …) go
             // through these hooks: the picker opens asynchronously and the picked files come back
