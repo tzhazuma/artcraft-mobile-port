@@ -157,6 +157,16 @@ fn phone_workspace() -> WorkspacePrefs {
     }
 }
 
+/// The path an export or "Save As" should write to: a sanitized file name inside the app's export
+/// directory (the app writes with plain file APIs, so a real path is what it needs).
+fn export_path(dir: &std::path::Path, name: &str) -> String {
+    let leaf = name.rsplit(['/', '\\']).next().unwrap_or(name);
+    let leaf = if leaf.is_empty() { "export" } else { leaf };
+    let path = dir.join(leaf);
+    log::info!("filmcraft-android: save dialog → {}", path.display());
+    path.to_string_lossy().into_owned()
+}
+
 /// Start the SAF picker for one of FilmCraft's own file dialogs.
 ///
 /// `HostHooks` are synchronous (they answer "which files?" inside the frame), and a picker cannot
@@ -213,6 +223,8 @@ fn android_main(app: AndroidApp) {
     std::thread::spawn(|| log::info!("filmcraft-android: {}", selftest::run()));
     // Application-private storage; used for auto-save, crash logs and preferences.
     let data_dir = app.internal_data_path();
+    // Exports and "Save As" write here (see the save hooks below).
+    let external_dir = app.external_data_path().map(|dir| dir.join("exports"));
     // The Java activity object: `ndk_context` only hands out the Application, which cannot start
     // the document picker for a result.
     let activity = app.activity_as_ptr() as usize;
@@ -265,6 +277,27 @@ fn android_main(app: AndroidApp) {
                     spawn_pick(control.clone(), activity, data_dir.clone(), "file.import", "paths");
                     None
                 }));
+            }
+            // Save/export dialogs: the app writes to a plain path, and SAF's ACTION_CREATE_DOCUMENT
+            // would need a second copy step once the write finishes, so exports land in the app's
+            // own external files directory (reachable over USB and by file managers).
+            if let Some(exports) = external_dir {
+                if let Err(e) = std::fs::create_dir_all(&exports) {
+                    log::warn!("filmcraft-android: cannot create {}: {e}", exports.display());
+                }
+                log::info!("filmcraft-android: exports go to {}", exports.display());
+                {
+                    let dir = exports.clone();
+                    app.hooks.pick_save = Some(Box::new(move |name: &str| Some(export_path(&dir, name))));
+                }
+                {
+                    let dir = exports.clone();
+                    app.hooks.pick_save_as = Some(Box::new(move |_filter: &str, _extensions: &[&str], name: &str| Some(export_path(&dir, name))));
+                }
+                {
+                    let dir = exports.clone();
+                    app.hooks.pick_folder = Some(Box::new(move || Some(dir.to_string_lossy().into_owned())));
+                }
             }
             Ok(Box::new(TouchShell { inner: app, tuned: false, font_done: false }))
         }),

@@ -115,4 +115,7 @@ release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出
 4. `docs/control-protocol.md` 里的 `engine.execute` 也是给自动化/MCP 的同一入口。
 
 实测（模拟器）：`file.import replied {"ok":true,"result":{"errors":[],"items":[1]}}`，Project 面板出现素材。
-注意：只接了「导入 / 打开」，导出用的 `pick_save` 等仍是空实现（SAF 的 `ACTION_CREATE_DOCUMENT` 是下一步）。
+保存/导出：`pick_save` / `pick_save_as` / `pick_folder` 返回应用外部目录里的
+`Android/data/ai.storyteller.filmcraft/files/exports/<name>`（应用写的是普通路径，SAF 的
+`ACTION_CREATE_DOCUMENT` 需要「写完再拷贝」的第二次握手，留作下一步）。实测（模拟器）：
+`File ▸ Save As… → /storage/emulated/0/Android/data/.../exports/Untitled copy.fcproj`（文件已生成）。
