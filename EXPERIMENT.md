@@ -144,6 +144,34 @@ adb shell am start -n ai.storyteller.filmcraft/.MainActivity
 
 顺带验证：**系统 CJK 字体加载生效**（logcat: `loaded system CJK font /system/fonts/NotoSansCJK-Regular.ttc`）。
 
+### 5.6 硬解落地：`crates/platform` 的 MediaCodec 后端（✅ 端到端验证）
+
+`patches/platform-mediacodec/`（覆盖 `crates/platform/` 的三个文件）给 Android 接上了真正的硬解后端，
+接法与 macOS 的 VideoToolbox 完全同形：
+
+- `register()` 在 Android 上返回 `Available("MediaCodec")` 并注册 `mediacodec_factory`；
+- 工厂返回 `HybridDecoder::new(Box::new(MediaCodecDecoder), entry, info)` —— 中途失败自动切软解、计数走
+  `note_hw_fallback()`，全部复用上游现成机制；
+- `MediaCodecDecoder`：avcC→Annex-B、csd-0/1 用 SPS/PPS 配置、输出按 `color-format`/`stride`/`crop`
+  转成与软解一致的 `PixelData::Yuv8` 三平面（NV12 顺手去交织）、EOS 用带 flag 的空输入缓冲排空；
+- 拒绝策略：非 H.264 / >8bit / 非 4:2:0 / 隔行 / 设备只有软件解码器（`c2.android.*`、`*.sw.*`）→
+  交回软解并 `note_hw_declined()`；
+- 唯一的 `unsafe` 是 `SendCodec` 的 `unsafe impl Send`（`AMediaCodec` 无线程亲和性，`&mut self` 保证不并发），
+  按 ADR 0001 放在 FFI 模块并带 `// SAFETY:` 说明。
+
+**验证**（FilmCraft release APK 启动时的内嵌片段自检，logcat）：
+
+```
+I filmcraft_platform::mediacodec: MediaCodec: decoding 320x240 H.264 with c2.goldfish.h264.decoder
+I filmcraft_platform::mediacodec: MediaCodec: output color-format 0x15, stride 320, slice-height 240, picture 319x239 at (0,0)
+I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 → 解出 30 帧（319x239） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0
+```
+
+即：**引擎自己的 `make_video_decoder()` 路径**（注册工厂 → HybridDecoder → MediaCodecDecoder）
+把 30 个样本全部解出，`hw_stats` 同步增长，无回退。自检代码在
+`patches/filmcraft-android/src/selftest.rs`（解析内嵌 Annex-B → 构造 `avc1` SampleEntry →
+逐个访问单元送解码器 → 报告解码器名/帧数/计数器）。
+
 ## 环境踩坑总汇（可复现）
 
 | # | 现象 | 根因 | 解法 |

@@ -25,6 +25,9 @@ crate-type = ["cdylib"]
 [target.'cfg(target_os = "android")'.dependencies]
 filmcraft-engine = { workspace = true }
 filmcraft-ui-egui = { workspace = true }
+filmcraft-codecs = { workspace = true }
+filmcraft-isobmff = { workspace = true }
+filmcraft-platform = { workspace = true }
 egui = { workspace = true }
 eframe = { workspace = true, default-features = false, features = [
     "default_fonts",

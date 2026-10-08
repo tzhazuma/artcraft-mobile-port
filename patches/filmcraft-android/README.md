@@ -87,3 +87,17 @@ release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出
    `software_video_decoder`；统计计数走 `filmcraft_codecs::hw::{note_hw_session,note_hw_frames,note_hw_declined,note_hw_fallback}`。
 5. **零 unsafe**：`ndk` crate 已包好 FFI，本后端可以用安全 Rust 写；`crates/platform` 的
    `unsafe_code = "deny"` 不需要额外豁免。
+
+## 8. 硬解已接入（2026-10-08）
+
+- `crates/platform` 的 MediaCodec 后端见 `patches/platform-mediacodec/`（覆盖该 crate 的三个文件）；
+- 本 crate 的 `android_main` 现在会调用 `filmcraft_platform::register()` 并打印
+  `hardware decoding: Available("MediaCodec")`；
+- 启动后另起线程跑一次自检（`src/selftest.rs`，内嵌 `assets/test.h264`），logcat 输出例如：
+
+  ```
+  自检: 解码器 MediaCodec H.264 | 样本 30 个 → 解出 30 帧（319x239） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0
+  ```
+
+  （自检走的是引擎自己的 `make_video_decoder()` 路径，所以它同时证明了工厂注册、HybridDecoder
+  包装与 hw 计数都在工作。）

@@ -111,6 +111,8 @@ fn install_system_font(ctx: &egui::Context) {
     log::warn!("filmcraft-android: no system CJK font found; CJK text will be tofu");
 }
 
+mod selftest;
+
 #[allow(unsafe_code)]
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
@@ -118,6 +120,13 @@ fn android_main(app: AndroidApp) {
         android_logger::Config::default().with_max_level(log::LevelFilter::Info),
     );
     log::info!("filmcraft-android: android_main entered");
+    // Hardware video decoding (MediaCodec). Streams it does not take fall through to FilmCraft's
+    // own decoders, so registering never makes a file undecodable.
+    let hardware = filmcraft_platform::register();
+    log::info!("filmcraft-android: hardware decoding: {hardware:?}");
+    // Decode the embedded clip through the registered factories: logcat evidence that the Android
+    // backend works end to end (decoder name, picture count, hardware counters).
+    std::thread::spawn(|| log::info!("filmcraft-android: {}", selftest::run()));
     // Application-private storage; used for auto-save, crash logs and preferences.
     let data_dir = app.internal_data_path();
     let options = eframe::NativeOptions {
