@@ -101,3 +101,18 @@ release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出
 
   （自检走的是引擎自己的 `make_video_decoder()` 路径，所以它同时证明了工厂注册、HybridDecoder
   包装与 hw 计数都在工作。）
+
+## 9. 文件导入（File ▸ Import ▸ 系统选择器）
+
+`HostHooks` 是同步回调，不能在里面等用户选文件，所以：
+
+1. `app.hooks.pick_files` / `pick_open_project` / `pick_open_file` 里**异步**启动 SAF 选择器（`src/saf.rs`
+   调 Java `MainActivity.safPickMedia()`），当帧返回「没有文件」；
+2. 用户选完后 `SafBridge` 把文件复制进 `<filesDir>/import/` 并把路径写进 `<filesDir>/import-manifest.txt`；
+3. 后台线程读到清单后，经控制通道投
+   `engine.execute{"command":"file.import","params":{"paths":[…]}}`（`menus::invoke` 带 paths 时直接执行
+   引擎命令，就是桌面 Import 的同一条命令）；
+4. `docs/control-protocol.md` 里的 `engine.execute` 也是给自动化/MCP 的同一入口。
+
+实测（模拟器）：`file.import replied {"ok":true,"result":{"errors":[],"items":[1]}}`，Project 面板出现素材。
+注意：只接了「导入 / 打开」，导出用的 `pick_save` 等仍是空实现（SAF 的 `ACTION_CREATE_DOCUMENT` 是下一步）。

@@ -173,21 +173,25 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 逐个访问单元送解码器 → 报告解码器名/帧数/计数器）。自检覆盖 **H.264 与 HEVC 两段片段**
 （HEVC 的 `csd-0` 要打包 VPS+SPS+PPS，NAL 类型在首个字节高 6 位）。
 
-### 5.7 SAF 文件导入 + 真机验证（本轮）
+### 5.7 SAF 文件导入（接进 FilmCraft 自带的 Import，模拟器端全链路验证）
 
-**SAF 导入桥**（`patches/filmcraft-android/src/saf.rs` + `android/.../SafBridge.java` + `MainActivity`）：
+**设计**（`patches/filmcraft-android/src/{lib.rs,saf.rs}` + `android/.../SafBridge.java` + `MainActivity`）：
 
-- 入口是壳里的**浮动操作条**（`导入媒体` / `打开工程`，40pt 命中目标），它把 `file.import` / `file.open`
-  投进 `FilmcraftApp::with_control` 的**控制通道**（与桌面控制服务器、MCP 同一入口），UI 线程不阻塞；
+- 入口就是 **FilmCraft 自己的 File ▸ Import… / Open Project…**：`HostHooks` 是同步回调（当帧就要回答
+  「选了哪些文件」），所以 hook 里**异步启动** SAF 选择器并立即返回「没有文件」；用户选完后，复制进
+  应用私有目录的路径经**控制通道**投递为
+  `engine.execute{"command":"file.import","params":{"paths":[…]}}` —— `menus::invoke` 只在**不带 paths**
+  时才弹对话框，带 paths 时直接执行引擎命令，**即桌面端 Import 走的同一条命令**，没有任何自造的导入按钮；
 - 后台线程经 JNI 调 `MainActivity.safPickMedia()` → `ACTION_OPEN_DOCUMENT` → 用户选完由
   `onActivityResult` 把文件**复制进应用私有目录**（引擎的文件接口只认真实路径，`content://` 用不了），
   路径写进 `<filesDir>/import-manifest.txt`，Rust 轮询 `safIsDone()` 后读清单；
-- 模拟器实测（logcat）：
+- 模拟器实测（logcat，`shots/stage10-*.png`）：
   ```
-  SafBridge: copied content://...saf-test.mp4 -> /data/user/0/ai.storyteller.filmcraft/files/import/saf-test.mp4
-  main::saf: SAF: 1 file(s) picked
-  main: SAF: sent file.import for 1 file(s)
+  SafBridge: copied content://...saf-test.mp4 -> /data/user/0/ai.storyteller.filmcraft/files/import/3_saf-test.mp4
+  SAF: 1 file(s) picked
+  SAF: file.import replied {"ok":true,"result":{"errors":[],"items":[1]}}
   ```
+  随后 Project 面板出现该素材（`Search 1 item` + 缩略图）。
 - 三个 JNI 坑（都已修）：① `ndk_context` 给的是 **Application** 不是 Activity（要用
   `AndroidApp::activity_as_ptr()`）；② 原生线程 `FindClass` 找不到应用类（JNI 规范：用系统类加载器），
   所以入口放在 **MainActivity 的实例方法**上（对象已有、虚调用无需 FindClass）；③ jni 0.22 的
@@ -200,9 +204,10 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 
 | 项 | 结果 |
 |---|---|
-| 安装与启动 | ✅ 42 MB release APK 直接装、正常启动、完整桌面 UI + 浮动操作条渲染（`shots/stage9-real-1.png`） |
+| 安装与启动 | ✅ 42 MB release APK 直接装、正常启动、完整桌面 UI 渲染（`shots/stage9-real-1.png`） |
 | **硬解** | ✅ 用**厂商硬件解码器**：H.264 `c2.mtk.avc.decoder`、HEVC `c2.mtk.hevc.decoder`，各 30 样本 → 30 帧，计数 30/1/0/0，无回退 |
-| 触摸输入 | ⚠️ **待查**：`dumpsys input` 显示事件已送达本应用窗口（`result='OK'`），但 `dumpsys gfxinfo` 的 `Total frames rendered` 停在 14 不再增长 —— 输入没有唤醒 Rust 事件循环，界面点不动（模拟器上同一份 APK 正常）。下一步查 winit/GameActivity 在本机的 input queue 与 vivo 的触摸策略 |
+| 触摸输入 | ✅ **可用**（先前误判）：`input:` 日志显示 winit/egui 收到 `Touch` 事件且坐标换算正确（像素 ÷ 2.5 = pt）；当时"点不动"是因为按横屏截图估的坐标、而设备方向在变，加上 `dumpsys gfxinfo` 不统计 SurfaceView 的 GL 帧。修正坐标后：File 菜单能打开、系统选择器能唤起 |
+| SAF 导入 | 🔶 真机选择器能打开并选中文件；完整导入待手机解锁后用 File ▸ Import 复跑一遍（熄屏时截图返回黑帧） |
 
 ## 环境踩坑总汇（可复现）
 
