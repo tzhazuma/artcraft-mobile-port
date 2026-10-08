@@ -65,3 +65,25 @@ adb shell am start -n ai.storyteller.filmcraft/.MainActivity
 
 release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出包）；`jniLibs` 通过
 `sourceSets { main { jniLibs.srcDirs = ['../../jniLibs'] } }` 指向 cargo-ndk 的输出目录。
+
+## 7. 硬解（MediaCodec）接入方案 —— 已验证可行性，待实现
+
+探针（`probe/egui-android-probe/src/mediacodec.rs`）已证明 AMediaCodec 路径可用
+（`c2.goldfish.h264.decoder`，输出 320×240；按访问单元逐帧送输入时可连续出帧）。
+
+接入上游 `crates/platform` 需要的（接口已核对）：
+
+1. **工厂**：`register()` 里对 `target_os = "android"` 注册一个 `videotoolbox_factory` 同形的
+   工厂 —— 入参 `&filmcraft_isobmff::SampleEntry`，出参 `Option<Result<Box<dyn filmcraft_codecs::VideoDecoder>>>`；
+   能从 `avcC`/`hvcC` 里拿到 SPS/PPS（作为 MediaCodec 的 `csd-0`/`csd-1`）。
+2. **解码器实现 `VideoDecoder`**：`decode(&mut self, sample: &[u8], pts: i64) -> Result<Vec<DecodedFrame>>`
+   —— 注意上游的 `sample` 是 **avcC 长度前缀**格式，喂 MediaCodec 前要转成 Annex-B
+   （把 4 字节长度换成 `00 00 00 01` 起始码）。
+3. **帧转换**（工作量主体）：MediaCodec 输出 `COLOR_FormatYUV420Flexible`（常见 NV12），
+   要按输出格式里的 **stride / slice-height / crop** 裁切并构造
+   `filmcraft_frame::VideoFrame { width, height, data: PixelData, color: ColorInfo, par, pts }`；
+   参考实现是 `crates/platform/src/videotoolbox.rs::copy_out`。
+4. **回退语义**：上游要求硬件工厂「不支持的流要拒绝」，中途失败要 `note_hw_fallback()` 并切回
+   `software_video_decoder`；统计计数走 `filmcraft_codecs::hw::{note_hw_session,note_hw_frames,note_hw_declined,note_hw_fallback}`。
+5. **零 unsafe**：`ndk` crate 已包好 FFI，本后端可以用安全 Rust 写；`crates/platform` 的
+   `unsafe_code = "deny"` 不需要额外豁免。
