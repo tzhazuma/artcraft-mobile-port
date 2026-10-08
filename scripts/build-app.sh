@@ -38,7 +38,14 @@ echo "== building $PKG (log: $LOG)"
 # Generate the real build script into a temp file with a QUOTED heredoc so that nothing inside
 # is expanded here. Never pass a command string through `bash -c "..."` with embedded quotes:
 # the outer expansion silently mangles PATH and then nothing (not even `cc`) resolves.
-INNER="$(mktemp /tmp/artcraft-inner-XXXXXX.sh)"
+#
+# `mktemp -t` picks a unique name in $TMPDIR; the explicit `$$` suffix removes the template race
+# that two concurrent teammates hit (the second mktemp failed, INNER stayed empty, and the lock
+# then ran an empty command — reported as a bogus "compile error"). `set -e` makes any failure
+# here abort loudly instead of building nothing.
+set -e
+INNER="$(mktemp -t "artcraft-inner-$$")"
+[ -n "$INNER" ] && [ -f "$INNER" ] || { echo "FAIL: could not create temp build script"; exit 2; }
 cat > "$INNER" <<'INNER_EOF'
 #!/bin/bash
 set -uo pipefail
@@ -60,6 +67,9 @@ sed -i '' \
   "$INNER"
 chmod +x "$INNER"
 
+# The build itself may legitimately fail; `set -e` is only here to catch setup mistakes, so turn
+# it off before invoking cargo or a compile error would abort before we can report it.
+set +e
 /tmp/artcraft-build-lock.sh "$INNER" > "$LOG" 2>&1
 rc=$?
 rm -f "$INNER"
