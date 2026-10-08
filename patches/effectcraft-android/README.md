@@ -110,7 +110,54 @@ APK=apps/effectcraft-android/android/app/build/outputs/apk/release/app-release.a
 after its first frame` → `素材自检: test.mp4 H.264 25 fps … ／ 引擎自检: file.import → 素材 … → 合成
 320x240 → 渲染 …，N 个不透明像素`。
 
-## 5. 已知缺口（首版必然缺的东西）
+## 5. 验证（本次实测）
+
+真机 **vivo PA2573 / Android 16**（`adb connect 192.168.0.106:37379`）与模拟器
+**emulator-5554**（Medium_Phone_API_36.0，无头 + SwiftShader）都装得上、起得来、无 panic：
+
+```
+# 真机（Mali-G925-Immortalis MC12，走 GPU 合成）
+effectcraft-android: android_main entered
+effectcraft-android: HOME → /data/user/0/ai.storyteller.effectcraft/files
+effectcraft-android: system CJK font NotoSansCJK-Regular.ttc → …/files/.fonts/NotoSansCJK-Regular.ttc (32355424 bytes)
+effectcraft-android: 素材自检: test.mp4 H.264 (Baseline) 25 fps，时长 1.00s → 解出 25 帧（320x240），采样亮度 0.393
+                      ／ 静帧 test.png 64x64（PNG） ／ 引擎自检: file.import → 素材 1 → 合成 320x240 → 渲染 320x240，76800 个不透明像素
+effectcraft-android: graphics adapter AdapterInfo { name: "Mali-G925-Immortalis MC12", device_type: IntegratedGpu, backend: Vulkan }
+effectcraft_ui_egui: GPU compositor: Mali-G925-Immortalis MC12 (Vulkan)
+effectcraft-android: touch mode applied (ppp 2.5, logical 1238×826 pt, interact 40 pt)
+ActivityTaskManager: Displayed ai.storyteller.effectcraft/.MainActivity for user 0: +201ms
+```
+
+真机截图 `shots/effectcraft-real.png`：Phone 工作区里 **Composition: EffectCraft Intro** 正渲染示例工程
+的片头（EFFECTCRAFT 标题卡），下面是 Timeline（8 个图层、时间标尺、关键帧条），状态栏
+`Frame Render Time 78 ms`——GPU 合成在真机上工作。
+
+```
+# 模拟器（SwiftShader = CPU 光栅化器：合成退回 CPU，见下）
+effectcraft-android: SwiftShader Device (LLVM 10.0.0) is a software rasterizer; compositing on the CPU
+effectcraft_ui_egui: GPU preview retired: software rasterizer (CPU adapter): compositing on the CPU
+effectcraft-android: touch mode applied (ppp 2.625, logical 411×914 pt, interact 40 pt)
+```
+
+模拟器截图 `shots/effectcraft-emulator.png`（竖屏 411×914 pt 的 Phone 工作区 + 示例工程渲染）与
+`shots/effectcraft-smoke.png`（`scripts/device-smoke.sh` 的 PASS 截图）。
+
+体积：release `.so` **76.3 MB**、APK **68.1 MB**（`dist/EffectCraft-0.4.0-android-arm64.apk`，
+sha256 `f06d847350eb6385df850b4c11ea1c70f6ffb99a478ba7357244912f7b7b26ed`），16 KB 页对齐
+（`zipalign -c -P 16` 通过）。比 FilmCraft/LightCraft 大是应用本身大：0.4.0 带四个纯 Rust 编码器
+（AV1/HEVC/VP9/Opus）、wasmi 插件运行时、boa JS 引擎、HarfBuzz 移植的文字排版，以及 PDF/PSD/SVG/
+Lottie/glTF 导入器。要更小可给 release 加 `strip = "symbols"`（本次没改上游 profile）。
+
+**模拟器的 CPU 光栅化回退**：`android_main` 里检查适配器 `device_type == Cpu`（SwiftShader、
+llvmpipe），是的话先向 `GpuFailureBridge` 报一次失败——应用自己就会用 CPU 合成（它本来就是设备跑不了
+compute 流水线时的路径）。不加这一步，模拟器上创建合成器设备 + 编译 compute 管线要 **约 3 分钟**
+才出第一帧（真机 200 ms）。真机适配器是 `IntegratedGpu`，不会触发，GPU 合成照常。
+
+**崩溃恢复 vs 示例工程**：没有可恢复的自动保存时启动即开示例工程；如果上一次没有干净退出
+（`begin_recovery()` 返回 Some），则按上游行为弹出恢复提示、**不**打开示例工程——此时 Composition
+面板是空的（`New Composition`），这是对的，不要用示例工程盖掉用户的自动保存。
+
+## 6. 已知缺口（首版必然缺的东西）
 
 - **音频**：`audio_device` / `audio_devices` 未接（预览静音）。接 cpal 的 AAudio 后端还需要
   `RECORD_AUDIO` 之外的输出路由与权限处理。

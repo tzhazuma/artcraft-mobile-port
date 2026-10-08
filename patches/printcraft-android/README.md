@@ -194,3 +194,57 @@ printcraft-android: SELFTEST ok: PDF 1.7 | page (612, 792) pt → raster 612×79
 ```
 
 A blank page, a failed parse or a missing text layer is visible from `adb logcat` alone.
+
+## 7. Verified (emulator, API 36, arm64)
+
+Build and install:
+
+```
+cargo +stable ndk -t arm64-v8a -o apps/printcraft-android/jniLibs build --release -p printcraft-android
+  → jniLibs/arm64-v8a/libmain.so            50,788,928 bytes
+~/artcraft-mobile/tools/gradle-9.3.1/bin/gradle assembleRelease --no-daemon -Dhttp.nonProxyHosts='*'
+  → app/build/outputs/apk/release/app-release.apk   48,731,622 bytes
+  → dist/PrintCraft-0.2.1-android-arm64.apk         sha256 cbe6001bedc1f8055eba8a098681fb2fbb7a41956c2cd77163ee82867c647dea
+```
+
+The packaged `libmain.so` is stripped to 40.9 MB by the Android plugin, and its four LOAD segments are
+`0x4000`-aligned (16 KB pages). The APK also carries three smaller cdylibs the Rust build produces
+(`libboa_engine`, `libocrs`, `librten`).
+
+Launch (logcat, tag `PrintCraft`):
+
+```
+I PrintCraft: printcraft-android: android_main entered (PdfCraft 0.2.1)
+I PrintCraft: printcraft-android: export scratch directory /storage/emulated/0/Android/data/ai.storyteller.printcraft/files/exports
+I PrintCraft: printcraft-android: SAF file dialogs installed (host_installed=true)
+I PrintCraft: printcraft-android: SELFTEST ok: PDF 1.7 | page (612, 792) pt → raster 612×792 (59311 ink px of 484704, 1 ms) | fonts 1 | text 74 glyphs (expected "PrintCraft on Android") | parser+rasterizer+text: working
+ActivityTaskManager: Displayed ai.storyteller.printcraft/.MainActivity for user 0: +1s623ms
+I PrintCraft: printcraft-android: touch mode applied (ppp 2.625, logical 411×914 pt, interact 40 pt)
+I PrintCraft: printcraft-android: loaded system CJK font /system/fonts/NotoSansCJK-Regular.ttc
+```
+
+File ▸ Open through the palette, end to end (a three-page test PDF pushed to Downloads):
+
+```
+I PrintCraft: palette: Open PDF… → file.open
+I PrintCraft: main::saf: SAF: opening the picker (types application/pdf|image/png|image/jpeg|image/tiff|image/gif|image/bmp|image/jp2|text/plain, multiple false, title "")
+I SafBridge:  copied content://com.android.providers.downloads.documents/document/raw%3A%2Fstorage%2Femulated%2F0%2FDownload%2Fprintcraft-demo.pdf -> /data/user/0/ai.storyteller.printcraft/files/import/printcraft-demo.pdf
+I PrintCraft: main::saf: SAF: 1 document(s) picked
+```
+
+The document then renders in the app (`shots/printcraft-opened.png`: all three pages, the tool rail,
+the page/zoom rail at 28 %). Save As reaches the system create-document dialog and, when it is
+cancelled, keeps the file:
+
+```
+I PrintCraft: main::saf: SAF: save dialog → scratch /storage/emulated/0/Android/data/ai.storyteller.printcraft/files/exports/printcraft-demo.pdf (suggested printcraft-demo.pdf, type application/pdf)
+I PrintCraft: main::saf: SAF: no destination chosen; the file stays at …/exports/printcraft-demo.pdf
+I PrintCraft: printcraft-android: Save cancelled: the file stayed in the app's folder
+```
+
+Screenshots: `shots/printcraft-launch.png` (home), `shots/printcraft-palette.png` (command palette),
+`shots/printcraft-opened.png` (the PDF open and rendering).
+
+Two defects were found this way and fixed before the build above: the palette was drawn under
+PrintCraft's own menus (it needs `egui::Order::Tooltip`), and the log tag defaulted to `main`
+(the cdylib's name), which no logcat filter can use.
