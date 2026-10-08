@@ -195,7 +195,9 @@ printcraft-android: SELFTEST ok: PDF 1.7 | page (612, 792) pt → raster 612×79
 
 A blank page, a failed parse or a missing text layer is visible from `adb logcat` alone.
 
-## 7. Verified (emulator, API 36, arm64)
+## 7. Verified
+
+### 7.1 Emulator (API 36, arm64, SwiftShader)
 
 Build and install:
 
@@ -248,3 +250,36 @@ Screenshots: `shots/printcraft-launch.png` (home), `shots/printcraft-palette.png
 Two defects were found this way and fixed before the build above: the palette was drawn under
 PrintCraft's own menus (it needs `egui::Order::Tooltip`), and the log tag defaulted to `main`
 (the cdylib's name), which no logcat filter can use.
+
+### 7.2 Real device (vivo PA2573, Android 16, Mali-G925, Vulkan)
+
+`scripts/device-smoke.sh ai.storyteller.printcraft .MainActivity PrintCraft 192.168.0.106:37379 printcraft-real dist/PrintCraft-0.2.1-android-arm64.apk` installs, launches and screenshots:
+
+```
+I PrintCraft: printcraft-android: android_main entered (PdfCraft 0.2.1)
+I PrintCraft: printcraft-android: SELFTEST ok: PDF 1.7 | page (612, 792) pt → raster 612×792 (59311 ink px of 484704, 4 ms) | fonts 1 | text 74 glyphs (expected "PrintCraft on Android") | parser+rasterizer+text: working
+I PrintCraft: egui_wgpu: There are 2 available wgpu adapters: {backend: Vulkan, device_type: IntegratedGpu, name: "Mali-G925-Immortalis MC12", …}
+I PrintCraft: printcraft-android: touch mode applied (ppp 2.5, logical 1238×826 pt, interact 40 pt)
+I PrintCraft: printcraft-android: loaded system CJK font /system/fonts/NotoSansCJK-Regular.ttc
+```
+
+On that device the logical viewport is 1238×826 pt, so PrintCraft's desktop layout fits as it is
+(`shots/printcraft-real.png`: the mode bar in **Read** mode, all five tool cards, the page).
+
+The whole open → save round trip was driven through the system UI on the phone:
+
+```
+# Open: the palette's "Open PDF…" → vivo's document picker → Download/printcraft-demo.pdf
+I PrintCraft: main::saf: SAF: opening the picker (types application/pdf|image/png|…, multiple false, title "")
+I SafBridge:  copied content://com.android.providers.media.documents/document/document%3A1000026764 -> /data/user/0/ai.storyteller.printcraft/files/import/printcraft-demo.pdf
+I PrintCraft: main::saf: SAF: 1 document(s) picked
+# …the document renders (shots/printcraft-real-opened.png: page 1 of 3, 129 %)
+# Save As… → the palette's own button → ACTION_CREATE_DOCUMENT (name pre-filled)
+I PrintCraft: main::saf: SAF: save dialog → scratch /storage/emulated/0/Android/data/ai.storyteller.printcraft/files/exports/printcraft-demo.pdf (suggested printcraft-demo.pdf, type application/pdf)
+I SafBridge:  save destination: content://com.android.providers.downloads.documents/document/314
+I SafBridge:  published /storage/emulated/0/Android/data/…/exports/printcraft-demo.pdf -> content://…/document/314
+I PrintCraft: main::saf: SAF: published /storage/emulated/0/Android/data/…/exports/printcraft-demo.pdf (4353 bytes) to the chosen destination
+```
+
+and the result is a real file on the device: `/sdcard/Download/printcraft-demo (1).pdf`, 4353 bytes
+(the picker added "(1)" because the source was still there). Screenshot: `shots/printcraft-real-saved.png`.

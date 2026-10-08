@@ -31,7 +31,28 @@ fi
 [ ! -f "$APK" ] && { echo "FAIL: no APK found matching '$TAG'"; exit 2; }
 echo "== apk: $APK ($(stat -f%z "$APK") bytes)"
 
-echo "== install"; "$ADB" -s "$SERIAL" install -r "$APK" || { echo "FAIL: install"; exit 3; }
+echo "== install"
+# `adb install` can HANG indefinitely on a large APK over wireless ADB: the package installs
+# (pm list packages shows it) but the adb process never returns, so the script would never
+# reach launch/logcat/screenshot. Bound it, and on timeout verify by package presence rather
+# than treating it as a failure.
+#
+# Capture adb's own status via PIPESTATUS -- piping to `tail` would otherwise hide it behind
+# tail's exit code, which is the same trap that made a failed cargo build look successful.
+INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-240}"
+timeout "$INSTALL_TIMEOUT" "$ADB" -s "$SERIAL" install -r "$APK" > /tmp/device-smoke-install.log 2>&1
+irc=$?
+tail -3 /tmp/device-smoke-install.log
+if [ "$irc" -eq 124 ]; then
+  echo "== install: TIMED OUT after ${INSTALL_TIMEOUT}s — verifying by package presence"
+  if "$ADB" -s "$SERIAL" shell pm list packages 2>/dev/null | grep -q "$APP_ID"; then
+    echo "== install: package IS present, continuing"
+  else
+    echo "FAIL: install timed out and $APP_ID is not installed"; exit 3
+  fi
+elif [ "$irc" -ne 0 ]; then
+  echo "FAIL: install (exit $irc)"; exit 3
+fi
 
 echo "== launch"; "$ADB" -s "$SERIAL" logcat -c
 "$ADB" -s "$SERIAL" shell am start -n "$APP_ID/$ACTIVITY" || { echo "FAIL: am start"; exit 4; }
