@@ -109,7 +109,12 @@ release 构建：`cargo +stable ndk -t arm64-v8a -o <jniLibs> build --release` +
 `src/mediacodec.rs` 用 `ndk` crate 的 AMediaCodec 绑定（`features = ["media","api-level-31"]`）解码一段内嵌的 H.264 Annex-B 测试流（ffmpeg 生成：320×240、30fps、1s，9.7 KB，`include_bytes!` 打包）。
 
 实测（模拟器）：**解码器 `c2.goldfish.h264.decoder`；创建 ✓ / configure ✓ / start ✓；输出 320×240**（logcat: `CCodecBuffers: ... width: 320, height: 240`）。
-发现：把整段 Annex-B 一次性塞进一个输入缓冲时，模拟器的解码器只吐出 1 帧 —— 正确做法是**按访问单元（AU）逐帧送**（生产代码里 filmcraft 的解复用器本来就是逐帧的），这条已在代码注释里标注为下一步。
+
+关键发现（两轮对照）：
+- **整段 Annex-B 塞进一个输入缓冲 → 只解出 1 帧**（`送入 9957 字节，解出 1 帧`）；
+- 改成**按访问单元（AU）逐帧送**（扫描起始码、遇到新的 VCL NAL 就切一刀）→ **解出 16 帧**（同一段 30 帧的流；模拟器解码器 + 15s 送流窗口，未全部解完）。
+
+结论：MediaCodec 的 FFI 路径（AMediaCodec + AMediaFormat）在 Android 上可用；生产接入（上游 `crates/platform`）必须按 AU 逐帧送，而不是整段灌。
 
 ### 5.4 🎉 FilmCraft 本体在 Android 上跑起来（截图 `shots/stage6-*.png`）
 
