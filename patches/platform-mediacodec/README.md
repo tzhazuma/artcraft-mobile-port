@@ -42,7 +42,8 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 
 ## 已知限制 / 下一步
 
-- 只支持 **H.264 8-bit 4:2:0**；HEVC（`hvcC`，`video/hevc`）与 10-bit 是自然的下一步。
+- 支持 **H.264 与 HEVC（8-bit 4:2:0，渐进）**：H.264 用 `csd-0`=SPS、`csd-1`=PPS；
+  HEVC 用 `csd-0`=VPS+SPS+PPS（都按 Annex-B 打包）。10-bit 与 4:2:2 仍会被拒绝（交回软解）。
 - `color-format` 只处理 19（I420）与 21/`flexible`（NV12 系）；遇到别的值会按 NV12 处理并告警。
 - 模拟器上 `c2.goldfish.h264.decoder` 是模拟器自己的解码器；真机上是厂商解码器（效果更明显）。
 - 尚未接 `create_input_surface`（零拷贝上屏）——当前走字节缓冲，够用且简单。

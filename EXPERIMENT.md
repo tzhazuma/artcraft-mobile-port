@@ -170,7 +170,8 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 即：**引擎自己的 `make_video_decoder()` 路径**（注册工厂 → HybridDecoder → MediaCodecDecoder）
 把 30 个样本全部解出，`hw_stats` 同步增长，无回退。自检代码在
 `patches/filmcraft-android/src/selftest.rs`（解析内嵌 Annex-B → 构造 `avc1` SampleEntry →
-逐个访问单元送解码器 → 报告解码器名/帧数/计数器）。
+逐个访问单元送解码器 → 报告解码器名/帧数/计数器）。自检覆盖 **H.264 与 HEVC 两段片段**
+（HEVC 的 `csd-0` 要打包 VPS+SPS+PPS，NAL 类型在首个字节高 6 位）。
 
 ## 环境踩坑总汇（可复现）
 

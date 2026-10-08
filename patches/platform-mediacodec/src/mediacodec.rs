@@ -61,9 +61,6 @@ pub struct MediaCodecDecoder {
 impl MediaCodecDecoder {
     /// Create and configure a decoder for `info`, or explain why this backend declines the stream.
     pub fn new(info: NalStreamInfo) -> std::result::Result<Self, String> {
-        if info.codec != NalCodec::H264 {
-            return Err("only H.264 is wired up".into());
-        }
         if info.bit_depth_luma > 8 || info.bit_depth_chroma > 8 {
             return Err(format!("only 8-bit, got {}/{}", info.bit_depth_luma, info.bit_depth_chroma));
         }
@@ -73,30 +70,45 @@ impl MediaCodecDecoder {
         if info.interlaced {
             return Err("interlaced streams are not supported".into());
         }
-        if info.parameter_sets.len() < 2 {
-            return Err("sample entry has no SPS/PPS".into());
-        }
 
-        let codec = MediaCodec::from_decoder_type("video/avc").ok_or("no video/avc decoder on this device")?;
-        let name = codec.name().unwrap_or_else(|_| "MediaCodec H.264".to_string());
+        // MediaCodec wants SPS/PPS (H.264) or VPS+SPS+PPS (HEVC) as Annex-B `csd-0` (and PPS as
+        // `csd-1` for H.264); `NalStreamInfo` hands us the parameter sets in record order.
+        let (mime, label, csd0, csd1) = match info.codec {
+            NalCodec::H264 => {
+                if info.parameter_sets.len() < 2 {
+                    return Err("sample entry has no SPS/PPS".into());
+                }
+                ("video/avc", "H.264", annexb_nals(&info.parameter_sets[..1]), Some(annexb_nals(&info.parameter_sets[1..2])))
+            }
+            NalCodec::Hevc => {
+                if info.parameter_sets.len() < 3 {
+                    return Err("sample entry has no VPS/SPS/PPS".into());
+                }
+                ("video/hevc", "HEVC", annexb_nals(&info.parameter_sets[..3]), None)
+            }
+        };
+
+        let codec = MediaCodec::from_decoder_type(mime).ok_or_else(|| format!("no {mime} decoder on this device"))?;
+        let name = codec.name().unwrap_or_else(|_| format!("MediaCodec {mime}"));
         if name.starts_with("c2.android.") || name.contains(".sw.") {
             return Err(format!("{name} is a software codec"));
         }
 
         let mut format = MediaFormat::new();
-        format.set_str("mime", "video/avc");
+        format.set_str("mime", mime);
         format.set_i32("width", info.crop.2 as i32);
         format.set_i32("height", info.crop.3 as i32);
         // Ask for semi-planar output; devices that ignore it report the real format in
         // `output_format()` and we read the layout from there.
         format.set_i32("color-format", COLOR_FORMAT_YUV420_SEMI_PLANAR);
-        // csd-0 = SPS, csd-1 = PPS, both Annex-B (start-code prefixed) as MediaCodec expects.
-        format.set_buffer("csd-0", &annexb_nals(std::slice::from_ref(&info.parameter_sets[0])));
-        format.set_buffer("csd-1", &annexb_nals(std::slice::from_ref(&info.parameter_sets[1])));
+        format.set_buffer("csd-0", &csd0);
+        if let Some(csd1) = &csd1 {
+            format.set_buffer("csd-1", csd1);
+        }
 
         codec.configure(&format, None, MediaCodecDirection::Decoder).map_err(|e| format!("configure: {e}"))?;
         codec.start().map_err(|e| format!("start: {e}"))?;
-        log::info!("MediaCodec: decoding {}x{} H.264 with {name}", info.crop.2, info.crop.3);
+        log::info!("MediaCodec: decoding {}x{} {label} with {name}", info.crop.2, info.crop.3);
         Ok(Self { codec: SendCodec(codec), info, annexb: Vec::new(), logged_layout: false })
     }
 
@@ -302,7 +314,10 @@ impl VideoDecoder for MediaCodecDecoder {
     }
 
     fn name(&self) -> &str {
-        "MediaCodec H.264"
+        match self.info.codec {
+            NalCodec::H264 => "MediaCodec H.264",
+            NalCodec::Hevc => "MediaCodec HEVC",
+        }
     }
 
     fn is_random_access(&self, sample: &[u8]) -> Option<bool> {
