@@ -214,6 +214,108 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 | SAF 导入 | ✅ **真机全链路通过**：`File ▸ Import…` → vivo 文件选择器 → 选中 `saf-test.mp4` → Project 面板出现 `1_saf-test.mp4`（0:02，带缩略图，`shots/stage12-real-project.png`） |
 | 手机工作区 | ✅ `PHONE` 工作区在真机上生效（Program 上半屏 / Timeline·Project·Tools 下半屏） |
 
+### 5.8 SAF save: ACTION_CREATE_DOCUMENT ✅
+
+FilmCraft's own Save As / export dialogs now write to a real file anywhere the user points them on Android: the destination comes from `ACTION_CREATE_DOCUMENT`, through the same Java `SafBridge` + `src/saf.rs` split as the import (§5.7). **The app's own dialog code is untouched** — the host hook supplies the destination the way the desktop file dialog does.
+
+Flow (`patches/filmcraft-android/src/lib.rs` + `src/saf.rs` + `SafBridge.java`):
+
+1. `app.hooks.pick_save` / `pick_save_as` answer with a scratch path in the app's export directory (`Android/data/ai.storyteller.filmcraft/files/exports/<name>`) and start `spawn_publish` on a background thread;
+2. the thread calls `saf.rs::pick_save` → Java `SafBridge.pickSave` (`ACTION_CREATE_DOCUMENT`, `EXTRA_TITLE` = the file name) and polls `safSaveDone()` / `safHasSaveUri()`;
+3. the app writes the file to the scratch path with its ordinary file APIs; `spawn_publish` waits for the size to stop changing, then `saf.rs::publish` copies the finished file to the chosen URI.
+
+Emulator run — Save As… from the open project → system picker (`shots/stage12-saf-save-picker.png`, name prefilled `Untitled.fcproj`), logcat:
+
+```
+I SafBridge: save destination: content://com.android.providers.downloads.documents/document/4
+I main: SAF: published /storage/emulated/0/Android/data/ai.storyteller.filmcraft/files/exports/Untitled.fcproj (734 bytes) to the chosen destination
+```
+
+…and the bytes really are in the emulator's Downloads:
+
+```bash
+adb shell ls -l /sdcard/Download/
+-rw-rw---- 1 u0_a204 media_rw   734 2026-10-08 14:14 Untitled.fcproj
+```
+
+Cancelling is harmless: the file just stays in the export directory (`SAF: no export destination chosen; the file stays at …`). **Outcome**: Save As / export is end-to-end on Android, with the destination entirely in the system picker.
+
+### 5.9 Touch command palette (long-press on the menu strip) ✅
+
+Desktop menu items are 12 pt — unreachable with a finger (§5.5). The shell now watches for a **500 ms press inside the top 8 % of the viewport** (where the desktop menu bar sits): `TouchShell::gestures` opens `command_palette`, a column of finger-sized buttons (260×52 pt, 18 pt labels) with the File commands — dispatched over the same control channel the SAF results use (§5.7):
+
+| Button | Command sent via `engine.execute` |
+|---|---|
+| 打开工程… | `file.open` |
+| 导入媒体… | `file.import` |
+| 保存 | `file.save` |
+| 另存为… | `file.saveAs` |
+| 打开示例工程 | `file.openDemoProject` |
+| 关闭工程 | `file.close` |
+
+There is no new command code: each button sends `{"command": <id>, "params": {}}` and the app's *own* command runs. Two implementation details: a press is cancelled by a move of more than 16 pt, and while the finger is down the gesture asks for a repaint every 100 ms (`ctx.request_repaint_after`) — egui renders on demand, so a motionless press would otherwise never reach the 500 ms threshold.
+
+Verified on the emulator:
+
+```bash
+adb shell input swipe 540 40 540 40 800    # 800 ms stationary press in the menu strip
+```
+
+```
+I main: android: long-press on the menu strip → command palette
+I main: palette: file.saveAs               # after tapping 另存为…
+```
+
+Screenshot: `shots/stage13-palette.png`.
+
+Gotcha found while testing: the **"Recover Unsaved Changes" modal eats taps** — with it on screen the palette opens behind it and the buttons never receive the click (both are visible in the screenshot). Dismiss it (Not Now / Discard) first.
+
+### 5.10 10-bit HEVC / 导出验证 ✅
+
+两件事收尾：**Main10（10-bit HEVC）硬解**接进 `patches/platform-mediacodec/src/mediacodec.rs`；**真机导出**经应用自己的命令链路全链路跑通。
+
+**10-bit HEVC 硬解**：
+
+- 解码器接受 `bit_depth ≤ 10`（luma 与 chroma 位深必须一致），10-bit 流向设备请求 **P010** 输出（`0x36` / 54）；
+- 新增 16-bit 输出路径 `frame_from_16`：把 16-bit LE 字里的样本 `>> 6` 还原成 10-bit 码值，产出 `PixelData::Yuv16 { bits: 10 }` —— 与 macOS 端 `videotoolbox.rs` 的做法完全一致；
+- 仍然拒绝 4:2:2（`chroma_format_idc != 1`）、luma/chroma 位深不一致、>10 bit、隔行 —— 这些经上游 `HybridDecoder` 回退到 FilmCraft 自带的软解。
+
+自检（`patches/filmcraft-android/src/selftest.rs`）现在解码**三段内嵌片段**（`assets/test.h264`、`test.hevc`、`test-10bit.hevc`；10-bit 片段为 7,958 字节的 HEVC Main 10、320×240、`yuv420p10le`），并且对 10-bit 片段额外用**我们自己的软解**逐帧对比 —— 守住的是 P010→10-bit 的转换，而不只是「解出了帧」。
+
+真机（vivo PA2573 / Android 16，无线调试；2026-10-08）三段自检全部通过，logcat（15:38:34）：
+
+```
+filmcraft-android: H.264 自检: 解码器 MediaCodec H.264 | 样本 30 个 → 解出 30 帧（320x240） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0 ／ HEVC 自检: 解码器 MediaCodec HEVC | 样本 30 个 → 解出 30 帧（320x240） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0 ／ HEVC 10-bit 自检: 解码器 MediaCodec HEVC | 样本 30 个 → 解出 30 帧（320x240） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0 | 与软解对比: 30 帧与软解逐像素一致
+```
+
+同一段日志里 P010 生效的直接证据：`output_format` 含 `int32_t color-format = 54`、`stride = 640`、`slice-height = 240`，解码器 `c2.mtk.hevc.decoder`。
+
+模拟器（emulator-5554，goldfish 没有 P010）结果同样正确（15:54:20）：硬件会话解出 0 帧，上游软件回退接住，逐像素对比通过：
+
+```
+… HEVC 10-bit 自检: 解码器 MediaCodec HEVC | 样本 30 个 → 解出 30 帧（320x240） | 硬件计数 帧 0 会话 1 拒绝 0 回退 1 | 与软解对比: 30 帧与软解逐像素一致
+```
+
+**4:2:2 的查证**（只查证、未写代码）：`dumpsys` 证据（`/tmp/dumpsys-phone.txt`、`/tmp/dumpsys-emu.txt`）—— 真机 `c2.mtk.hevc.decoder` 只广告 4:2:0 的 profile（Main、MainStill、Main10、Main10HDR10、Main10HDR10Plus）和 4:2:0 色彩格式（YUV420Flexible/Planar/SemiPlanar/PackedPlanar/PackedSemiPlanar）+ YUVP010，**没有 4:2:2（无 RExt），也没有 P210**；模拟器的 goldfish HEVC 只列 Main/MainStill，连 P010 都没有。结论：当前移动端硬件不提供 HEVC 4:2:2，解码器继续拒绝 `chroma_format_idc != 1`，这类流交给 FilmCraft 自带的软解。
+
+**真机导出全链路**：长按菜单条 → 命令面板选「导出媒体（H.264，前 2 秒）」→ 走应用自己的引擎命令 `file.exportMedia`，显式参数 `{"format":"h264","path":"/storage/emulated/0/Android/data/ai.storyteller.filmcraft/files/exports/export-2s.mp4","range":"custom","startSeconds":0.0,"endSeconds":2.0}`。编码全程是**纯 Rust 编码器**（`crates/platform` 没有 encoder —— MTK 硬件编码明确**未接入**）。logcat（15:48）：
+
+```
+palette: 导出媒体（H.264，前 2 秒） → {…file.exportMedia…}
+export: {"ok":true,"result":{"job":4,"path":"…/exports/export-2s.mp4"}}
+… progress 100.0% 48/48 Done in 3.0s
+export: job 4 finished: {"bytes":2975979,"frames":48,"path":"…","render_fps":15.83,"seconds":3.03}
+```
+
+同一导出跑了 3 次，输出完全一致（每次 2,975,979 字节，sha256 `7f00407754bbdb823c4bb19f46688086a846f986fe11e1771f055e11a0a7d9f5`）；`ffprobe` 复核：H.264 High 1920×1080 24000/1001 fps + AAC LC 48 kHz 立体声，容器 encoder tag `FilmCraft 0.2.1`，48/48 帧解码无错。应用静止时也能看到 `finished` 行，靠的是 `patches/filmcraft-android/src/lib.rs` 里的一处重绘修复（导出 watcher 在作业未完期间调用 `ctx.request_repaint()`，约 1 秒轮询一次）。
+
+**如实记录两个问题**：
+
+1. 模拟器上装完本构建**首次**启动时，10-bit 片段卡在 `c2.goldfish.hevc.decoder`（它接受了 P010 的 configure）—— 没有输出缓冲、不报错，几分钟都没出自检汇总；重启应用后不到一秒就以软件回退完成。未能复现；自检目前**没有整段解码的看门狗**。
+2. 脚本化长按坐标（540 40）正好落在顶部 header 的 "Export" 模式按钮上，抬手时偶尔顺带把应用切进 Export 工作区 —— 纯外观影响：作业、日志、文件都不受影响；换一个 x 坐标即可避开。
+
+**产物与截图**：release APK `filmcraft/apps/filmcraft-android/android/app/build/outputs/apk/release/app-release.apk` —— 44,535,267 字节，sha256 `dc70a7472a6e104b91455407bcba351dfeb64d7c4f264d8727755e3937b504cb`；截图 `shots/stage14-palette.png`、`stage14-demo.png`、`stage14-export-2s-start.png`、`stage15-palette-export.png`、`stage15-palette-export-demo.png`、`stage15-export-running.png`、`stage15-export-running-exportmode.png`、`stage15-export-finished.png`；原始日志 `/tmp/final-export-phone.log`、`/tmp/emulator-selftest.log`。
+
 ## 环境踩坑总汇（可复现）
 
 | # | 现象 | 根因 | 解法 |
@@ -229,7 +331,7 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 
 ## 下一步
 
-- [ ] 用**真机**（USB 调试）安装 `app-debug.apk` 与 FilmCraft APK：`adb install -r ...`，观测 wgpu 后端（Vulkan）与 limits 是否满足 8192
+- [x] 用**真机**安装 FilmCraft APK 并验证：安装启动、硬解（H.264 / HEVC / 10-bit）、导出均已通过（2026-10-08，无线调试；见 §5.7、§5.10）
 - [ ] 用真实手机重测阶段 0（手机 GPU 上限普遍 ≥8192；模拟器 4096 是已知差异）
-- [ ] FilmCraft 出 APK：按 `patches/filmcraft-android/README.md` 复制 Gradle 外壳；建议先做 `--release`（debug 的 855 MB .so 不实用）
+- [x] FilmCraft 出 APK：release `app-release.apk` 已产出并验证（44,535,267 字节；见 §5.10）
 - [ ] SAF 文件选择、cpal 音频、MediaCodec 硬解、触屏布局（产品级工作，见 PORTING.md）

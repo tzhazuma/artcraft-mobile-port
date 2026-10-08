@@ -93,14 +93,17 @@ release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出
 - `crates/platform` 的 MediaCodec 后端见 `patches/platform-mediacodec/`（覆盖该 crate 的三个文件）；
 - 本 crate 的 `android_main` 现在会调用 `filmcraft_platform::register()` 并打印
   `hardware decoding: Available("MediaCodec")`；
-- 启动后另起线程跑一次自检（`src/selftest.rs`，内嵌 `assets/test.h264`），logcat 输出例如：
+- 启动后另起线程跑一次自检（`src/selftest.rs`，内嵌 `assets/test.h264`、`assets/test.hevc` 和
+  `assets/test-10bit.hevc`（HEVC Main 10））：三段流都走引擎自己的 `make_video_decoder()` 路径，
+  10-bit 那段还会用我们自己的软解再解一遍并逐像素比对，所以它同时验证了 16-bit（P010）输出换算。
+  logcat 输出例如：
 
   ```
-  自检: 解码器 MediaCodec H.264 | 样本 30 个 → 解出 30 帧（319x239） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0
+  自检: 解码器 MediaCodec H.264 | 样本 30 个 → 解出 30 帧（319x239） | 硬件计数 帧 30 会话 1 拒绝 0 回退 0 ／ …
   ```
 
-  （自检走的是引擎自己的 `make_video_decoder()` 路径，所以它同时证明了工厂注册、HybridDecoder
-  包装与 hw 计数都在工作。）
+  （工厂注册、HybridDecoder 包装与 hw 计数都在这一行里；真机上的完整输出见 EXPERIMENT/patches README
+  的“验证”一节。）
 
 ## 9. 文件导入（File ▸ Import ▸ 系统选择器）
 
@@ -115,7 +118,37 @@ release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出
 4. `docs/control-protocol.md` 里的 `engine.execute` 也是给自动化/MCP 的同一入口。
 
 实测（模拟器）：`file.import replied {"ok":true,"result":{"errors":[],"items":[1]}}`，Project 面板出现素材。
-保存/导出：`pick_save` / `pick_save_as` / `pick_folder` 返回应用外部目录里的
-`Android/data/ai.storyteller.filmcraft/files/exports/<name>`（应用写的是普通路径，SAF 的
-`ACTION_CREATE_DOCUMENT` 需要「写完再拷贝」的第二次握手，留作下一步）。实测（模拟器）：
-`File ▸ Save As… → /storage/emulated/0/Android/data/.../exports/Untitled copy.fcproj`（文件已生成）。
+
+保存/导出：`pick_save` / `pick_save_as` 先让引擎写应用外部目录里的
+`Android/data/ai.storyteller.filmcraft/files/exports/<name>`（引擎写的是普通路径），同时后台线程调
+`saf.rs` 的 `safPickSave()`（Java `SafBridge.pickSave` → `ACTION_CREATE_DOCUMENT`），等用户选完、
+文件写完后由 `safPublish()` 把成品拷到用户选的位置——取消时文件留在导出目录，不丢东西。
+文件夹选择（proxy / Project Manager 目标）仍固定返回应用目录：SAF 的 tree picker 给的是
+引擎按路径写不了的 document tree。
+实测（真机）：命令面板 ▸ 另存为… → 系统「保存到」对话框预填 `FilmCraft Demo.fcproj`（SAF
+`ACTION_CREATE_DOCUMENT`），同时引擎已把工程写到
+`/storage/emulated/0/Android/data/.../exports/FilmCraft Demo.fcproj`；点返回取消后 logcat：
+`SAF: no export destination chosen; the file stays at …/exports/FilmCraft Demo.fcproj`。
+
+## 10. 触屏命令面板与导出（真机）
+
+长按顶部 8% 菜单条 500 ms 打开命令面板（`TouchShell::gestures` / `command_palette`），除 File 命令外还有：
+
+- **导出媒体（H.264，前 2 秒）/（整个序列）**：直接投 `engine.execute{"command":"file.exportMedia",
+  "params":{"path":<外部目录>/exports/…,"format":"h264","wait":false,…}}`——桌面 File ▸ Export ▸
+  Media File… 的对话框没法用手指驱动，所以按 CLI 的用法传显式参数；`wait:false` 让导出在引擎的
+  后台 job 里跑，不阻塞 UI 线程。同一个后台线程还会每秒 `jobs.list` 并把进度/结果写进 logcat
+  （它会 `request_repaint()`，否则空闲的编辑器不跑帧、控制通道的轮询没人应答）。
+- **导出模式**：`mode.export`，切到桌面那套 Export 面板（Destinations / Media File / 队列 / 预览）。
+
+实测（真机 vivo PA2573，1920×1080 的示例工程 23.976 fps，纯 Rust H.264 + AAC）：
+
+```
+palette: 导出媒体（H.264，整个序列） → {"command":"file.exportMedia","params":{"format":"h264","path":"/storage/emulated/0/Android/data/…/exports/export-full.mp4","wait":false}}
+export: {"ok":true,"result":{"job":1,"path":"/storage/emulated/0/Android/data/…/exports/export-full.mp4"}}
+export: job 1 Export export-full.mp4 progress 100.0% 642/642 Done in 58.0s
+export: job 1 finished: {"bytes":64109351,"frames":642,"render_fps":11.08,"seconds":57.95}
+```
+
+拉回 Mac 后 `ffprobe`：`h264 (High) 1920x1080 yuv420p(tv, bt709) 23.98 fps` + `aac (LC) 48000 Hz stereo`，
+时长 26.79 s、64,109,351 字节、编码器标记 `FilmCraft 0.2.1`，`ffmpeg -f null -` 全解码无错、642 帧。

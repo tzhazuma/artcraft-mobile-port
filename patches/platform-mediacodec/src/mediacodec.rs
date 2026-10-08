@@ -6,9 +6,14 @@
 //! mid-stream software fallback, so this type only has to be a faithful hardware decoder.
 //!
 //! Streams this backend does not take are declined in [`MediaCodecDecoder::new`] (which makes the
-//! caller fall through to FilmCraft's own decoder): anything but 8-bit 4:2:0 progressive H.264, and
-//! devices whose `video/avc` decoder is a software one (`c2.android.*` / `*.sw.*`) — using those
-//! would only be slower than our own decoder while reporting itself as "hardware".
+//! caller fall through to FilmCraft's own decoder): anything but 8- or 10-bit 4:2:0 progressive
+//! H.264 / HEVC, and devices whose decoder for the codec is a software one (`c2.android.*` /
+//! `*.sw.*`) — using those would only be slower than our own decoder while reporting itself as
+//! "hardware".
+//!
+//! 10-bit output arrives as 16-bit words with the 10 bits in the high bits (P010); it is copied
+//! into [`PixelData::Yuv16`] with `bits = 10` exactly as `crate::videotoolbox::copy_out` does, so
+//! both hardware backends hand the engine the same frames.
 //!
 //! This module holds the crate's only `unsafe`: the `Send` impl for the MediaCodec handle
 //! ([`SendCodec`]), which the engine needs because [`VideoDecoder`] is `Send`.
@@ -30,6 +35,8 @@ const BUFFER_FLAG_END_OF_STREAM: u32 = 4;
 /// `AMEDIAFORMAT_KEY_COLOR_FORMAT` values we understand.
 const COLOR_FORMAT_YUV420_PLANAR: i32 = 19;
 const COLOR_FORMAT_YUV420_SEMI_PLANAR: i32 = 21;
+/// `COLOR_FormatYUVP010`: 10-bit 4:2:0 in 16-bit words (the 10 bits in the high bits).
+const COLOR_FORMAT_YUV420_P010: i32 = 54;
 
 /// How long to wait for an input buffer before giving up on a sample.
 const INPUT_TIMEOUT: Duration = Duration::from_millis(500);
@@ -61,8 +68,11 @@ pub struct MediaCodecDecoder {
 impl MediaCodecDecoder {
     /// Create and configure a decoder for `info`, or explain why this backend declines the stream.
     pub fn new(info: NalStreamInfo) -> std::result::Result<Self, String> {
-        if info.bit_depth_luma > 8 || info.bit_depth_chroma > 8 {
-            return Err(format!("only 8-bit, got {}/{}", info.bit_depth_luma, info.bit_depth_chroma));
+        if info.bit_depth_luma > 10 || info.bit_depth_chroma > 10 {
+            return Err(format!("only 8- and 10-bit, got {}/{}", info.bit_depth_luma, info.bit_depth_chroma));
+        }
+        if info.bit_depth_luma != info.bit_depth_chroma {
+            return Err(format!("{}-bit luma / {}-bit chroma", info.bit_depth_luma, info.bit_depth_chroma));
         }
         if info.chroma_format_idc != 1 {
             return Err(format!("only 4:2:0, got chroma_format_idc {}", info.chroma_format_idc));
@@ -98,9 +108,11 @@ impl MediaCodecDecoder {
         format.set_str("mime", mime);
         format.set_i32("width", info.crop.2 as i32);
         format.set_i32("height", info.crop.3 as i32);
-        // Ask for semi-planar output; devices that ignore it report the real format in
-        // `output_format()` and we read the layout from there.
-        format.set_i32("color-format", COLOR_FORMAT_YUV420_SEMI_PLANAR);
+        // Ask for semi-planar output — P010 for a 10-bit stream (16-bit words, the 10 bits in the
+        // high bits); devices that ignore it report the real format in `output_format()` and we
+        // read the layout from there.
+        let requested = if info.bit_depth_luma > 8 { COLOR_FORMAT_YUV420_P010 } else { COLOR_FORMAT_YUV420_SEMI_PLANAR };
+        format.set_i32("color-format", requested);
         format.set_buffer("csd-0", &csd0);
         if let Some(csd1) = &csd1 {
             format.set_buffer("csd-1", csd1);
@@ -202,22 +214,39 @@ impl MediaCodecDecoder {
     }
 
     /// Convert one output buffer into the engine's planar frame, cropping to the display rectangle
-    /// and de-interleaving chroma when the device hands back semi-planar (NV12) data.
+    /// and de-interleaving chroma when the device hands back semi-planar (NV12 / P010) data.
     fn frame_from(info: &NalStreamInfo, logged_layout: &mut bool, data: &[u8], format: &MediaFormat) -> Result<VideoFrame> {
         let color_format = format.i32("color-format").unwrap_or(COLOR_FORMAT_YUV420_SEMI_PLANAR);
         let (iw, ih) = (info.crop.2 as usize, info.crop.3 as usize);
         let stride = format.i32("stride").filter(|s| *s > 0).map_or(iw, |s| s as usize);
         let vstride = format.i32("slice-height").filter(|s| *s > 0).map_or(ih, |s| s as usize);
         let (ox, oy, w, h) = match format.rect("crop") {
-            Some((l, t, r, b)) if r > l && b > t => (l.max(0) as usize, t.max(0) as usize, (r - l) as usize, (b - t) as usize),
+            // `crop-right` / `crop-bottom` are the right-most / bottom-most *included* column and row
+            // (MediaCodec's crop-rectangle semantics), so the picture is one wider and one taller
+            // than their difference.
+            Some((l, t, r, b)) if r >= l && b >= t => (l.max(0) as usize, t.max(0) as usize, (r - l + 1) as usize, (b - t + 1) as usize),
             _ => {
                 let (cx, cy, cw, ch) = info.crop;
                 (cx as usize, cy as usize, cw as usize, ch as usize)
             }
         };
+        // A 10-bit stream comes back as 16-bit words with the 10 bits in the high bits (P010);
+        // only if the device names one of the 8-bit formats did it really hand back 8-bit data.
+        let wide = info.bit_depth_luma > 8 && !matches!(color_format, COLOR_FORMAT_YUV420_PLANAR | COLOR_FORMAT_YUV420_SEMI_PLANAR);
+        // `stride` is the luma row stride, either in bytes (P010: the plane is `stride *
+        // slice-height` bytes) or in pixels (some vendor formats: the plane holds twice that); the
+        // buffer size tells the two apart.
+        let row = if wide && data.len() >= stride * vstride * 2 { stride * 2 } else { stride };
         if !*logged_layout {
             *logged_layout = true;
-            log::info!("MediaCodec: output color-format {color_format:#x}, stride {stride}, slice-height {vstride}, picture {w}x{h} at ({ox},{oy})");
+            log::info!(
+                "MediaCodec: output color-format {color_format:#x}{}, stride {stride}, slice-height {vstride}, picture {w}x{h} at ({ox},{oy}), {}-bit samples, {row}-byte rows",
+                if color_format == COLOR_FORMAT_YUV420_P010 { " (P010)" } else { "" },
+                if wide { 10 } else { 8 },
+            );
+        }
+        if wide {
+            return Self::frame_from_16(info, data, row, vstride, ox, oy, w, h);
         }
         let (cw, chh) = (w.div_ceil(2), h.div_ceil(2));
         let (cox, coy) = (ox / 2, oy / 2);
@@ -269,6 +298,68 @@ impl MediaCodecDecoder {
             pts: Tick::ZERO,
         })
     }
+
+    /// The 10-bit half of [`Self::frame_from`]: the luma plane comes first (`row` bytes per row),
+    /// then interleaved (U, V) pairs of 16-bit words. P010 keeps the 10 significant bits in the
+    /// high bits of every word; the samples are stored as 10-bit codes (`0..=1023`), the
+    /// convention [`crate::videotoolbox`] and the rest of the engine share.
+    fn frame_from_16(info: &NalStreamInfo, data: &[u8], row: usize, vstride: usize, ox: usize, oy: usize, w: usize, h: usize) -> Result<VideoFrame> {
+        let (cw, chh) = (w.div_ceil(2), h.div_ceil(2));
+        let (cox, coy) = (ox / 2, oy / 2);
+        let plane = row * vstride;
+        let row_samples = row / 2;
+        if ox + w > row_samples || oy + h > vstride || data.len() < plane {
+            return Err(CodecError::Decode(format!("10-bit buffer of {} bytes is smaller than {row_samples}x{vstride}", data.len())));
+        }
+        let luma = data.get(..plane).unwrap_or(&[]);
+        let shift = sample_shift(luma);
+        // Chroma rows carry (U, V) 16-bit pairs, at the luma row stride (the usual layout) or, where
+        // the device packs them tighter, at half of it.
+        let c_row = if data.len() >= plane + row * vstride.div_ceil(2) { row } else { row / 2 };
+        let mut y = pool::take_u16(w * h);
+        for r in 0..h {
+            let start = (oy + r) * row + ox * 2;
+            let Some(line) = data.get(start..start + w * 2) else {
+                return Err(CodecError::Decode("10-bit luma row out of range".into()));
+            };
+            y.extend(line.as_chunks::<2>().0.iter().map(|b| u16::from_le_bytes([b[0], b[1]]) >> shift));
+        }
+        let (mut u, mut v) = (pool::take_u16(cw * chh), pool::take_u16(cw * chh));
+        for r in 0..chh {
+            let start = plane + (coy + r) * c_row + cox * 4;
+            let Some(line) = data.get(start..start + cw * 4) else { break };
+            for pair in line.as_chunks::<4>().0 {
+                u.push(u16::from_le_bytes([pair[0], pair[1]]) >> shift);
+                v.push(u16::from_le_bytes([pair[2], pair[3]]) >> shift);
+            }
+        }
+        if u.len() < cw * chh || v.len() < cw * chh {
+            return Err(CodecError::Decode("chroma planes are shorter than the picture".into()));
+        }
+        Ok(VideoFrame {
+            width: w as u32,
+            height: h as u32,
+            data: PixelData::Yuv16 { planes: [std::sync::Arc::new(y), std::sync::Arc::new(u), std::sync::Arc::new(v)], chroma: Chroma::C420, bits: 10, alpha: None },
+            color: info.color,
+            par: info.par,
+            pts: Tick::ZERO,
+        })
+    }
+}
+
+/// How far a 16-bit output sample is shifted down to reach its 10-bit code: P010 keeps the 10 bits
+/// in the high half (shift 6), while a device that already hands out right-aligned codes (nothing
+/// above 1023 anywhere in the picture, some low bits in use) needs no shift.
+fn sample_shift(data: &[u8]) -> u32 {
+    let mut seen = 0u16;
+    let mut low = 0u16;
+    // A bounded prefix keeps this cheap on 4K pictures; the whole picture shares one layout.
+    for b in data.as_chunks::<2>().0.iter().take(8192) {
+        let v = u16::from_le_bytes([b[0], b[1]]);
+        seen |= v;
+        low |= v & 0x3f;
+    }
+    if seen & !0x3ff != 0 || low == 0 { 6 } else { 0 }
 }
 
 /// The parameter-set NAL units of an avcC/hvcC record with Annex-B start codes, as MediaCodec's

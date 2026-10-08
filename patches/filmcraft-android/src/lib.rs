@@ -47,6 +47,14 @@ struct TouchShell {
     tuned: bool,
     /// The CJK fallback font has been added (after the theme's fonts went live).
     font_done: bool,
+    /// Commands for the app's control channel (the desktop control server's entry point).
+    control: Sender<ControlRequest>,
+    /// The touch command palette is open.
+    palette: bool,
+    /// Press bookkeeping for the long-press gesture.
+    press: Option<(std::time::Instant, egui::Pos2)>,
+    /// The app's export directory: where the palette's explicit exports land.
+    exports: Option<PathBuf>,
 }
 
 impl TouchShell {
@@ -107,7 +115,191 @@ impl eframe::App for TouchShell {
             self.font_done = true;
             install_system_font(ui.ctx());
         }
+        self.gestures(ui.ctx());
+        if self.palette {
+            self.command_palette(ui.ctx());
+        }
     }
+}
+
+impl TouchShell {
+    /// Long-press on the strip where the desktop menu bar sits opens the command palette: those
+    /// 12 pt menu items cannot be hit with a finger, so the same commands get finger-sized targets.
+    fn gestures(&mut self, ctx: &egui::Context) {
+        let (down, pos, released) = ctx.input(|i| (i.pointer.primary_down(), i.pointer.latest_pos(), i.pointer.primary_released()));
+        if !down || released {
+            self.press = None;
+            return;
+        }
+        let Some(p) = pos else { return };
+        // While the finger is down, keep frames coming so the 500 ms threshold can pass.
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        let strip = ctx.viewport_rect().height() * 0.08;
+        match self.press {
+            None => self.press = Some((std::time::Instant::now(), p)),
+            Some((started, origin)) => {
+                if origin.distance(p) > 16.0 {
+                    self.press = None; // a drag, not a press
+                } else if started.elapsed() > std::time::Duration::from_millis(500) {
+                    if p.y < strip && !self.palette {
+                        self.palette = true;
+                        log::info!("android: long-press on the menu strip → command palette");
+                    }
+                    self.press = None;
+                }
+            }
+        }
+    }
+
+    /// The touch replacement for the top menu bar: the File commands and the export entries as
+    /// full-width buttons.
+    ///
+    /// Export runs the engine's own `file.exportMedia` (the shape the CLI and the bench pass) with
+    /// explicit parameters, because the desktop dialog behind File ▸ Export ▸ Media File… cannot be
+    /// driven with a finger; the file lands in the app's export directory. The job runs in the
+    /// background (`wait: false`) — `wait: true` would block the UI thread — and
+    /// [`spawn_export_watch`] follows it into logcat.
+    fn command_palette(&mut self, ctx: &egui::Context) {
+        const COMMANDS: [(&str, &str); 6] = [
+            ("打开工程…", "file.open"),
+            ("导入媒体…", "file.import"),
+            ("保存", "file.save"),
+            ("另存为…", "file.saveAs"),
+            ("打开示例工程", "file.openDemoProject"),
+            ("关闭工程", "file.close"),
+        ];
+        let exports = self.exports.clone();
+        let mut close = false;
+        egui::Area::new(egui::Id::new("command-palette"))
+            .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 72.0))
+            .show(ctx, |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_min_width(260.0);
+                    ui.label(egui::RichText::new("命令（长按顶部菜单条打开）").size(13.0));
+                    ui.separator();
+                    for (label, id) in COMMANDS {
+                        if ui.add_sized([260.0, 52.0], egui::Button::new(egui::RichText::new(label).size(18.0))).clicked() {
+                            self.send(ctx, label, serde_json::json!({"command": id, "params": {}}));
+                            close = true;
+                        }
+                    }
+                    if let Some(dir) = &exports {
+                        for (label, name, range) in [
+                            ("导出媒体（H.264，前 2 秒）", "export-2s.mp4", Some((0.0, 2.0))),
+                            ("导出媒体（H.264，整个序列）", "export-full.mp4", None),
+                        ] {
+                            if ui.add_sized([260.0, 52.0], egui::Button::new(egui::RichText::new(label).size(18.0))).clicked() {
+                                let mut params = serde_json::json!({
+                                    "path": dir.join(name).to_string_lossy(),
+                                    "format": "h264",
+                                    "wait": false,
+                                });
+                                if let Some((start, end)) = range {
+                                    params["range"] = serde_json::json!("custom");
+                                    params["startSeconds"] = serde_json::json!(start);
+                                    params["endSeconds"] = serde_json::json!(end);
+                                }
+                                self.send(ctx, label, serde_json::json!({"command": "file.exportMedia", "params": params}));
+                                close = true;
+                            }
+                        }
+                    }
+                    if ui.add_sized([260.0, 52.0], egui::Button::new(egui::RichText::new("导出模式").size(18.0))).clicked() {
+                        self.send(ctx, "导出模式", serde_json::json!({"command": "mode.export", "params": {}}));
+                        close = true;
+                    }
+                    if ui.add_sized([260.0, 44.0], egui::Button::new(egui::RichText::new("取消").size(16.0))).clicked() {
+                        close = true;
+                    }
+                });
+            });
+        if close {
+            self.palette = false;
+        }
+    }
+
+    /// Run one command over the app's control channel (`engine.execute`, the same entry point the
+    /// desktop control server and MCP use) and log it: the request's payload is the logcat record
+    /// of what the palette did. Export jobs are followed to the end by [`spawn_export_watch`].
+    fn send(&mut self, ctx: &egui::Context, label: &str, payload: serde_json::Value) {
+        let (request, reply) = ControlRequest::new("engine.execute", payload.clone());
+        match self.control.send(request) {
+            Ok(()) => log::info!("palette: {label} → {payload}"),
+            Err(_) => {
+                log::warn!("palette: control channel is closed");
+                return;
+            }
+        }
+        if payload.get("command").and_then(serde_json::Value::as_str) == Some("file.exportMedia") {
+            // The app services the control channel while it runs a frame, so nudge it: an idle
+            // editor does not repaint on its own and the watcher's poll would never be answered.
+            ctx.request_repaint();
+            spawn_export_watch(self.control.clone(), ctx.clone(), reply);
+        }
+    }
+}
+
+/// Follow an export started from the palette to the end: log the command's reply and then poll
+/// `jobs.list` for the job's progress, so logcat carries the export's start, progress and result.
+/// Runs on its own thread — an export must never block the UI thread.
+fn spawn_export_watch(control: Sender<ControlRequest>, ctx: egui::Context, reply: std::sync::mpsc::Receiver<serde_json::Value>) {
+    std::thread::spawn(move || {
+        let job = match reply.recv_timeout(std::time::Duration::from_secs(60)) {
+            Ok(value) => {
+                log::info!("export: {value}");
+                value.get("result").and_then(|r| r.get("job")).and_then(serde_json::Value::as_u64)
+            }
+            Err(e) => {
+                log::warn!("export: no reply: {e}");
+                return;
+            }
+        };
+        let Some(job) = job else { return };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(7200);
+        let mut last = String::new();
+        loop {
+            ctx.request_repaint();
+            let (request, reply) = ControlRequest::new("engine.execute", serde_json::json!({"command": "jobs.list", "params": {}}));
+            if control.send(request).is_err() {
+                log::warn!("export: control channel is closed");
+                return;
+            }
+            let Ok(value) = reply.recv_timeout(std::time::Duration::from_secs(60)) else {
+                log::warn!("export: no reply for jobs.list");
+                return;
+            };
+            let jobs = value.get("result").cloned().unwrap_or(serde_json::Value::Null);
+            let job_value = jobs
+                .as_array()
+                .and_then(|a| a.iter().find(|j| j.get("id").and_then(serde_json::Value::as_u64) == Some(job)))
+                .cloned();
+            let Some(job_value) = job_value else {
+                log::warn!("export: job {job} left the list");
+                return;
+            };
+            let line = format!(
+                "job {job} {} progress {:.1}% {}/{} {}",
+                job_value.get("label").and_then(serde_json::Value::as_str).unwrap_or(""),
+                job_value.get("progress").and_then(serde_json::Value::as_f64).unwrap_or(0.0) * 100.0,
+                job_value.get("done").and_then(serde_json::Value::as_u64).unwrap_or(0),
+                job_value.get("total").and_then(serde_json::Value::as_u64).unwrap_or(0),
+                job_value.get("status").and_then(serde_json::Value::as_str).unwrap_or(""),
+            );
+            if line != last {
+                log::info!("export: {line}");
+                last = line;
+            }
+            if job_value.get("finished").and_then(serde_json::Value::as_bool).unwrap_or(false) {
+                log::info!("export: job {job} finished: {}", job_value.get("result").cloned().unwrap_or_default());
+                return;
+            }
+            if std::time::Instant::now() > deadline {
+                log::warn!("export: giving up on job {job}");
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+        }
+    });
 }
 
 /// Add the device's CJK font to egui's *current* fallback chain: the bundled fonts have no CJK
@@ -165,6 +357,41 @@ fn export_path(dir: &std::path::Path, name: &str) -> String {
     let path = dir.join(leaf);
     log::info!("filmcraft-android: save dialog → {}", path.display());
     path.to_string_lossy().into_owned()
+}
+
+/// Ask where the export should land, wait for the app to finish writing the scratch file, then
+/// publish it there. Nothing is lost when the user cancels: the file stays in the export directory.
+fn spawn_publish(activity: usize, scratch: String) {
+    std::thread::spawn(move || {
+        let title = scratch.rsplit('/').next().unwrap_or("export").to_owned();
+        if !saf::pick_save(activity, &title, std::time::Duration::from_secs(300)) {
+            log::info!("SAF: no export destination chosen; the file stays at {scratch}");
+            return;
+        }
+        // The app writes the file after the dialog: wait until it exists and its size has stopped
+        // changing for a moment.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(900);
+        let (mut size, mut stable_since) = (0u64, std::time::Instant::now());
+        loop {
+            let now = std::fs::metadata(&scratch).map(|m| m.len()).unwrap_or(0);
+            if now != size {
+                size = now;
+                stable_since = std::time::Instant::now();
+            } else if size > 0 && stable_since.elapsed() > std::time::Duration::from_millis(1500) {
+                break;
+            }
+            if std::time::Instant::now() > deadline {
+                log::warn!("SAF: giving up on publishing {scratch} (nothing was written)");
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(400));
+        }
+        if saf::publish(activity, &scratch) {
+            log::info!("SAF: published {scratch} ({size} bytes) to the chosen destination");
+        } else {
+            log::warn!("SAF: publishing {scratch} failed; the file stays in the export directory");
+        }
+    });
 }
 
 /// Start the SAF picker for one of FilmCraft's own file dialogs.
@@ -225,6 +452,8 @@ fn android_main(app: AndroidApp) {
     let data_dir = app.internal_data_path();
     // Exports and "Save As" write here (see the save hooks below).
     let external_dir = app.external_data_path().map(|dir| dir.join("exports"));
+    // The command palette writes its explicit exports to the same directory.
+    let shell_exports = external_dir.clone();
     // The Java activity object: `ndk_context` only hands out the Application, which cannot start
     // the document picker for a result.
     let activity = app.activity_as_ptr() as usize;
@@ -278,28 +507,38 @@ fn android_main(app: AndroidApp) {
                     None
                 }));
             }
-            // Save/export dialogs: the app writes to a plain path, and SAF's ACTION_CREATE_DOCUMENT
-            // would need a second copy step once the write finishes, so exports land in the app's
-            // own external files directory (reachable over USB and by file managers).
+            // Save/export dialogs: the app writes to a plain path, so the hook answers with a
+            // scratch file in the app's export directory and a watcher publishes the finished file
+            // to wherever the user points ACTION_CREATE_DOCUMENT.
             if let Some(exports) = external_dir {
                 if let Err(e) = std::fs::create_dir_all(&exports) {
                     log::warn!("filmcraft-android: cannot create {}: {e}", exports.display());
                 }
-                log::info!("filmcraft-android: exports go to {}", exports.display());
+                log::info!("filmcraft-android: export scratch directory {}", exports.display());
                 {
                     let dir = exports.clone();
-                    app.hooks.pick_save = Some(Box::new(move |name: &str| Some(export_path(&dir, name))));
+                    app.hooks.pick_save = Some(Box::new(move |name: &str| {
+                        let scratch = export_path(&dir, name);
+                        spawn_publish(activity, scratch.clone());
+                        Some(scratch)
+                    }));
                 }
                 {
                     let dir = exports.clone();
-                    app.hooks.pick_save_as = Some(Box::new(move |_filter: &str, _extensions: &[&str], name: &str| Some(export_path(&dir, name))));
+                    app.hooks.pick_save_as = Some(Box::new(move |_filter: &str, _extensions: &[&str], name: &str| {
+                        let scratch = export_path(&dir, name);
+                        spawn_publish(activity, scratch.clone());
+                        Some(scratch)
+                    }));
                 }
                 {
+                    // Folder pickers (proxy and Project Manager destinations) stay in the app dir:
+                    // SAF's tree picker returns a document tree the engine cannot write to by path.
                     let dir = exports.clone();
                     app.hooks.pick_folder = Some(Box::new(move || Some(dir.to_string_lossy().into_owned())));
                 }
             }
-            Ok(Box::new(TouchShell { inner: app, tuned: false, font_done: false }))
+            Ok(Box::new(TouchShell { inner: app, tuned: false, font_done: false, control, palette: false, press: None, exports: shell_exports }))
         }),
     );
     if let Err(e) = started {

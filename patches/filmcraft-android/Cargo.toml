@@ -26,6 +26,7 @@ crate-type = ["cdylib"]
 filmcraft-engine = { workspace = true }
 filmcraft-ui-egui = { workspace = true }
 filmcraft-codecs = { workspace = true }
+filmcraft-frame = { workspace = true }
 filmcraft-isobmff = { workspace = true }
 filmcraft-platform = { workspace = true }
 egui = { workspace = true }
