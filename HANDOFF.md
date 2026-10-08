@@ -31,6 +31,44 @@
 
 上游克隆固定在 commit `8fcad73`（2026-10-07，版本 0.2.1）。若克隆丢失：`git clone https://github.com/storytold/filmcraft ~/artcraft-mobile/filmcraft`。网络注意：本机 `raw.githubusercontent.com` 被重置，下载走 `gh-proxy.com` / `ghproxy.net`，git 走 HTTPS/SSH-443。
 
+### 五个应用的上游固定 commit（2026-10-08 记录）
+
+全部 `git clone --depth 1 https://github.com/storytold/<app>`，均被 `.gitignore` 排除：
+
+| 应用 | 上游仓库 | 固定 commit | MSRV | 内部 crate 名 |
+|---|---|---|---|---|
+| FilmCraft | `storytold/filmcraft` | `8fcad73` | 1.95 | `filmcraft` |
+| LightCraft | `storytold/lightcraft` | `629e393` | 1.90 | `lightcraft` |
+| PhotoCraft | `storytold/photocraft` | `5896f0b` | 1.95 | `photocraft` |
+| EffectCraft | `storytold/effectcraft` | `72a2d47` | 1.95 | `effectcraft` |
+| PrintCraft | `storytold/printcraft` | `1e54e70` | 1.90 | **`pdfcraft`**（仓库名与 crate 名不一致！） |
+
+五个克隆结构一致：`crates/*` + `apps/*` + `xtask`，均带 `AGENTS.md`。
+
+### 团队并行移植：两个必须知道的设施
+
+**`BUILD-SERIALIZATION.md` + `/tmp/artcraft-build-lock.sh`** —— 磁盘只有 ~14 GB 余量时四个并行构建必然爆盘（每个应用 `target` ~2 GB + Gradle ~0.5 GB）。开发可并行，**构建必须串行**，用该脚本包住每条 `cargo ndk` / `gradle assembleRelease`。
+
+> **陷阱（已踩）**：**macOS 没有 `flock(1)`**。该脚本第一版用 `flock 200` 且没写 `set -e`，于是打印 "ACQUIRED" 却根本没上锁——串行化静默失效。现版本改用 `python3 -c 'fcntl.flock(...)'` + `os.execvp` 让锁跨越 exec 存活，并已用「第二个获取者阻塞全程」验证互斥。若构建无输出地卡住，先查 `pgrep -fl artcraft-build-lock`——锁可能被挂死的构建占着。
+
+**`scripts/device-smoke.sh`** —— 安装 + 启动 + 过滤 logcat + 截图一条龙，已在真机 vivo PA2573 上用 FilmCraft APK 端到端验证（`Displayed ai.storyteller.filmcraft/.MainActivity for user 0: +145ms`，截图 136 KB）：
+```bash
+scripts/device-smoke.sh <app-id> .MainActivity <Tag> auto <shot-name> [exact-apk-path]
+```
+
+### 磁盘清理记录（本次会话回收 ~7 GB，14 GB → 21 GB）
+
+| 删除项 | 大小 | 理由 |
+|---|---|---|
+| `~/Library/Android/sdk/ndk/26.1.10909125` | 3.0 GB | 旧 NDK，本工作全部用 r28.2（STORAGE.md 早已批准） |
+| `~/.npm/_cacache`、`~/Library/Caches/Homebrew/*` | 1.2 GB | 纯下载缓存，可再生 |
+| `filmcraft/target` | 2.0 GB | 试点已完成，APK 已在 `dist/` |
+| `filmcraft/apps/filmcraft-android/android/app/build` | 0.5 GB | 同上 |
+| `probe/egui-android-probe/target`、`tools/gradle-9.3.1-bin.zip` | 0.2 GB | 均可再生 |
+
+**不要删**：`dist/`、`shots/`、`tools/gradle-9.3.1/`（wrapper 下不动，必须手工 Gradle）、`~/.gradle/caches`（代理环境重取困难）、NDK 28.2、`~/.android/avd/`。
+
+
 ## 2. 已验证状态
 
 ### 2.1 `patches/filmcraft-android/` —— FilmCraft 已在 Android 上运行

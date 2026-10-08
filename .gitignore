@@ -1,6 +1,11 @@
 # 大文件与临时产物不入库
 dmg/
+# 上游克隆（可丢弃的工作树；记录载体是 patches/ + 文档 + shots/）
 filmcraft/
+lightcraft/
+photocraft/
+effectcraft/
+printcraft/
 android-activity/
 filmcraft-web/
 tools/
