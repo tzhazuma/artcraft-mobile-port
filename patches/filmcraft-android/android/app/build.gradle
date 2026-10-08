@@ -6,11 +6,18 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.artcraft.eguiandroidprobe"
+        applicationId = "ai.storyteller.filmcraft"
         minSdk = 31
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.2.1"
+    }
+
+    sourceSets {
+        main {
+            // cargo ndk -o apps/filmcraft-android/jniLibs 的输出目录
+            jniLibs.srcDirs = ['../../jniLibs']
+        }
     }
 
     buildTypes {
@@ -20,7 +27,6 @@ android {
             signingConfig = signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {
-                // 只打 arm64（真机与 Apple Silicon 模拟器同一 ABI）
                 abiFilters 'arm64-v8a'
             }
         }
@@ -32,7 +38,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    namespace = 'com.artcraft.eguiandroidprobe'
+    namespace = 'ai.storyteller.filmcraft'
 }
 
 dependencies {

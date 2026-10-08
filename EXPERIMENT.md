@@ -78,10 +78,61 @@ FilmCraft □□□□□ eframe 0.36 + wgpu + winit 0.30 + GameActivity
 - **解法**：启动时 `std::env::set_var("WGPU_BACKEND", "gl")` 强制 GLES 后端 → 一次通过，界面正常渲染（软件光栅化约 4 fps，真机 GPU 会快得多）。
 - 顺带发现：默认字体不含中文（截图中方块），这正是上游用 `craft-fonts` 解决的那类问题，移动端同样要处理。
 
+## 阶段 5：release 构建 + 触屏 UI + MediaCodec 硬解（本轮）
+
+### 5.1 release 体积（debug vs release）
+
+| 产物 | debug | release |
+|---|---|---|
+| probe `libmain.so` | 237 MB | **16 MB** |
+| probe APK | 34 MB | **17 MB** |
+| FilmCraft `libmain.so` | 855 MB | **45 MB** |
+| FilmCraft APK | —（未出包） | **42 MB** |
+
+release 构建：`cargo +stable ndk -t arm64-v8a -o <jniLibs> build --release` + `gradle assembleRelease`（本仓库用 debug 签名以方便安装）。构建耗时：probe 约 1 分钟（依赖已预热）、FilmCraft 约 6 分钟（`lto = "thin"`、`codegen-units = 1`）。
+
+### 5.2 触屏 UI 探针（截图 `shots/stage5-touch-cjk.png`）
+
+`probe/egui-android-probe` 重写为触屏优先布局：顶部状态栏、可平移/缩放的画布、手势日志、大尺寸（≥48dp）底部工具条。手势用 egui 的内建能力：
+
+| 手势 | API | 实测 |
+|---|---|---|
+| 拖动平移 | `resp.dragged()` + `drag_delta()` | ✅ |
+| 双指缩放 | `ctx.input(|i| i.zoom_delta())` / `multi_touch().num_touches` | ✅（日志显示「多指接触：N 指」） |
+| 双击复位 | `resp.double_clicked()` | ✅ |
+| 长按菜单 | `resp.long_touched()` | ✅（egui 0.36 直接支持） |
+
+**中文字体**：egui 自带字体不含 CJK，默认渲染成方块 —— 运行时读设备字体即可解决（`/system/fonts/NotoSansCJK-Regular.ttc`，`FontData::from_owned` + 挂到 `families` 尾部做回退；`.ttc` 靠 `FontData.index` 选面）。这对上游的意义：移动端要么随包带 craft-fonts，要么走系统字体回退。
+
+### 5.3 MediaCodec 硬解（截图 `shots/stage5-decode-*.png`）
+
+`src/mediacodec.rs` 用 `ndk` crate 的 AMediaCodec 绑定（`features = ["media","api-level-31"]`）解码一段内嵌的 H.264 Annex-B 测试流（ffmpeg 生成：320×240、30fps、1s，9.7 KB，`include_bytes!` 打包）。
+
+实测（模拟器）：**解码器 `c2.goldfish.h264.decoder`；创建 ✓ / configure ✓ / start ✓；输出 320×240**（logcat: `CCodecBuffers: ... width: 320, height: 240`）。
+发现：把整段 Annex-B 一次性塞进一个输入缓冲时，模拟器的解码器只吐出 1 帧 —— 正确做法是**按访问单元（AU）逐帧送**（生产代码里 filmcraft 的解复用器本来就是逐帧的），这条已在代码注释里标注为下一步。
+
+### 5.4 🎉 FilmCraft 本体在 Android 上跑起来（截图 `shots/stage6-*.png`）
+
+```bash
+cargo +stable ndk -t arm64-v8a -o apps/filmcraft-android/jniLibs build --release -p filmcraft-android   # 6m04s
+cd apps/filmcraft-android/android && gradle assembleRelease          # 42 MB APK
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell am start -n ai.storyteller.filmcraft/.MainActivity
+```
+
+结果：
+- **完整桌面 UI 在手机上渲染**：菜单栏、Properties（"Select a clip to see its properties"）、Project 面板、时间线、音频表（dB）、状态栏提示；
+- 点击 **Open Demo Project 后工程加载成功**：Project 面板列出 `Footage 6 items` / `Audio 1 item`，Timeline 出现 `V1/V2/A1/A2` 轨道、蓝色片段块、时间码 `00:00:04:0`、走带控制；
+- wgpu 在模拟器上选了 **Vulkan（SwiftShader）** 后端并稳定运行（未复现探针早期的 Vulkan 崩溃）；
+- 数据目录走 `AndroidApp::internal_data_path()`（自动保存/偏好），日志显示 `Installing profile for ai.storyteller.filmcraft`。
+
+同时也暴露了预期中的问题：**桌面布局直接搬到手机上不可用** —— 菜单栏文字互相重叠、命中目标只有几像素、时间线被挤成一条窄缝。这正是「触屏 UI」要做的工作（探针 5.2 演示了可行的一组做法）。
+
 ## 环境踩坑总汇（可复现）
 
 | # | 现象 | 根因 | 解法 |
 |---|---|---|---|
+| 0 | Gradle/JVM 全线 `Connection refused`、依赖解析挂起 | `~/.gradle/gradle.properties` 与 `~/.npmrc` 里写死代理端口 **7890**，而实际代理（Clash Verge / verge-mihomo）在 **7897** | 已把 6 处配置统一改成 7897；构建时也可用 `-Dhttp.nonProxyHosts='*'` 直连 |
 | 1 | `cargo build` 报 MSRV 不满足 / 用错 rustc | PATH 里 `/usr/local/bin`（Homebrew rust 1.89）优先于 rustup shim；且 rustup 默认工具链是 nightly 1.91 | 用 `~/.cargo/bin/cargo +stable`，并让 `PATH` 里 `~/.cargo/bin` 在前 |
 | 2 | GameActivity 编译：找不到 `aarch64-linux-android-clang++` | `game-activity` 的 C++ 由 cc-rs 构建，需要 NDK 工具链环境 | 用 `cargo ndk`（它注入 CC/CXX/AR），不要裸 `cargo check` |
 | 3 | Gradle wrapper 下载 `Connection refused` | `~/.gradle/gradle.properties` 写死 `systemProp.*.proxyPort=7890`，实际代理（Clash Verge / verge-mihomo）在 **7897** | 覆盖端口或 `-Dhttp.nonProxyHosts='*'` 直连；本次直接手动下载 gradle 发行版运行 |

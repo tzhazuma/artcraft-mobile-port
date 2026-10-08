@@ -17,3 +17,7 @@ eframe = { version = "0.36", default-features = false, features = [
 winit = { version = "0.30", default-features = false }
 log = "0.4"
 android_logger = "0.15"
+
+[target.'cfg(target_os = "android")'.dependencies]
+# AMediaCodec / AMediaFormat 绑定（硬解探针用）
+ndk = { version = "0.9", features = ["media", "api-level-31"] }

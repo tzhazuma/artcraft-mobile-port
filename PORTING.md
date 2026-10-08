@@ -137,6 +137,17 @@ adb logcat | grep -Ei "rust|panic|wgpu|vulkan|AndroidRuntime"
 | 7 | 无硬解（只有 VideoToolbox） | 新写 MediaCodec 后端（新 FFI + 修订 ADR 0001） |
 | 8 | UI 为桌面设计（1600×980、143 快捷键、悬停） | 触屏布局属产品级工作量，不在实验范围 |
 
+### 4.6 实测补充（2026-10-08，本仓库实验）
+
+| 主题 | 结论 |
+|---|---|
+| **release 体积** | `cargo ndk ... build --release`：FilmCraft `.so` 855 MB（debug）→ **45 MB**；APK 42 MB（含 debug 签名）。debug 产物不适合装机 |
+| **字体** | egui 默认字体无 CJK → 中文渲染成方块。运行时读 `/system/fonts/NotoSansCJK-Regular.ttc` 挂到 `FontDefinitions.families` 尾部即可（`.ttc` 用 `FontData.index` 选面）；上游等效方案是随包带 craft-fonts |
+| **硬解（MediaCodec）** | 用 `ndk` crate 的 AMediaCodec 绑定（`features=["media","api-level-31"]`）已跑通：`c2.goldfish.h264.decoder`，输出 320×240。**要接进上游 `crates/platform`**（该 crate 是唯一允许 `unsafe` 的 FFI 白名单），并注意按访问单元(AU)逐帧送输入，不要整段塞一个 buffer |
+| **触屏 UI** | 桌面布局在手机上不可用（菜单重叠、命中目标几像素）。实测可行的组合：底部大按钮工具条（≥48dp）+ `dragged()` 平移 + `zoom_delta()`/`multi_touch()` 双指缩放 + `double_clicked()` 复位 + `long_touched()` 菜单 |
+| **UI 在真机/模拟器都能起** | wgpu 在模拟器选 Vulkan(SwiftShader) 可稳定运行；早期一次探针 Vulkan 崩溃定位在模拟器驱动 `vulkan.ranchu.so`，可用 `WGPU_BACKEND=gl` 规避 |
+| **16 KB 页** | NDK r28 + AGP 9.1 的产物：`zipalign -c -P 16` 通过、`.so` LOAD 段 `0x4000` 对齐 ✅ |
+
 ---
 
 ## 5. iOS

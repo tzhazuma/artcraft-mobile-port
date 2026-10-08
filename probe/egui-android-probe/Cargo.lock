@@ -518,6 +518,7 @@ dependencies = [
  "android_logger",
  "eframe",
  "log",
+ "ndk",
  "winit",
 ]
 

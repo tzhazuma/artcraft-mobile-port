@@ -13,8 +13,7 @@ INFO         |   Checking: hasSufficientHwGpu
 INFO         |      Ok: Hardware GPU compatibility checks are not required
 INFO         |   Checking: hasSufficientSystem
 INFO         |      Ok: System requirements to run avd: `Medium_Phone_API_36.0` are met
-INFO         | Storing crashdata in: /tmp/android-azuma/emu-crash-36.2.4.db, detection is enabled for process: 97127
-INFO         | No consent for crashreport bedb5a03-55db-43e4-a59d-86c86a976e5c, deleting.
+INFO         | Storing crashdata in: /tmp/android-azuma/emu-crash-36.2.4.db, detection is enabled for process: 54044
 INFO         | Initializing hardware OpenGLES emulation support
 INFO         | android_startOpenglesRenderer: gpu info
 INFO         | 
@@ -88,21 +87,135 @@ INFO         | Monitoring duration of emulator setup.
 WARNING      | The emulator now requires a signed jwt token for gRPC access! Use the -grpc flag if you really want an open unprotected grpc port
 INFO         | Using security allow list from: /Users/azuma/Library/Android/sdk/emulator/lib/emulator_access.json
 WARNING      | *** Basic token auth should only be used by android-studio ***
-INFO         | The active JSON Web Key Sets can be found here: /Users/azuma/Library/Caches/TemporaryItems/avd/running/97127/jwks/68632f76-4a10-4a6d-a89c-61ffabb86a6a/active.jwk
-INFO         | Scanning /Users/azuma/Library/Caches/TemporaryItems/avd/running/97127/jwks/68632f76-4a10-4a6d-a89c-61ffabb86a6a for jwk keys.
+INFO         | The active JSON Web Key Sets can be found here: /Users/azuma/Library/Caches/TemporaryItems/avd/running/54044/jwks/f71dd56e-f3c6-412b-a3c6-9c61046affbb/active.jwk
+INFO         | Scanning /Users/azuma/Library/Caches/TemporaryItems/avd/running/54044/jwks/f71dd56e-f3c6-412b-a3c6-9c61046affbb for jwk keys.
 INFO         | Started GRPC server at 127.0.0.1:8554, security: Local, auth: +token
-INFO         | Advertising in: /Users/azuma/Library/Caches/TemporaryItems/avd/running/pid_97127.ini
+INFO         | Advertising in: /Users/azuma/Library/Caches/TemporaryItems/avd/running/pid_54044.ini
 INFO         | Setting display: 0 configuration to: 1080x2400, dpi: 420x420 
 INFO         | setDisplayActiveConfig 0
-USER_INFO    | Emulator is performing a full startup. This may take upto two minutes, or more.
 INFO         | OpenGL Vendor=[Google (Google Inc. (Google))]
 INFO         | OpenGL Renderer=[Android Emulator OpenGL ES Translator (ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver-5.0.0))]
 INFO         | OpenGL Version=[OpenGL ES 3.0 (OpenGL ES 3.1.0 (ANGLE 2.1.1 git hash: fbf66f49c7cc))]
+USER_INFO    | Emulator is performing a full startup. This may take upto two minutes, or more.
 INFO         | Activated packet streamer for uwb emulation
 INFO         | Activated packet streamer for bluetooth emulation
-INFO         | Boot completed in 17985 ms
+INFO         | Boot completed in 91176 ms
 INFO         | Increasing screen off timeout, logcat buffer size to 2M.
-INFO         | Created VkInstance:0x77aca8c400 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x7915318500] Frame num change from 0 to 1
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 2
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 3
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 4
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 5
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 6
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 7
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 8
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 9
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 10
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 11
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 12
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 13
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 14
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 15
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 1
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 2
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 3
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 4
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 5
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 6
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 7
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 8
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 9
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 10
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 11
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 12
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x7915318500] Frame num change from 0 to 13
+[h264 @ 0x7915318500] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 1
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 2
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 3
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 4
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 5
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 6
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 7
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 8
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 9
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 10
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 11
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 12
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 13
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 14
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 15
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 1
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 2
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 3
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 4
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 5
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 6
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 7
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 8
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 9
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 10
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 11
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 12
+[h264 @ 0x79157fad00] decode_slice_header error
+[h264 @ 0x79157fad00] Frame num change from 0 to 13
+[h264 @ 0x79157fad00] decode_slice_header error
+INFO         | Created VkInstance:0x790eee3c00 for application:'wgpu' engine:'wgpu-hal'.
 ../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
 ../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
 ../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
@@ -127,6 +240,61 @@ INFO         | Created VkInstance:0x77aca8c400 for application:'wgpu' engine:'wg
 ../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
 ../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
 ../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
-INFO         | Created VkDevice:0x77a0af0010 for application:'wgpu' instance:0x77aca8c400. ASTC emulation:off CPU decoding:off.
-INFO         | Destroyed VkDevice:0x77a0af0010
-INFO         | Destroyed VkInstance:0x77aca8c400 for application:'wgpu' engine:'wgpu-hal'.
+INFO         | Created VkDevice:0x790c774010 for application:'wgpu' instance:0x790eee3c00. ASTC emulation:off CPU decoding:off.
+[h264 @ 0x79157fb700] Frame num change from 0 to 1
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 2
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 3
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 4
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 5
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 6
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 7
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 8
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 9
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 10
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 11
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 12
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 13
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 14
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 15
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 1
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 2
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 3
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 4
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 5
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 6
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 7
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 8
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 9
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 10
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 11
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 12
+[h264 @ 0x79157fb700] decode_slice_header error
+[h264 @ 0x79157fb700] Frame num change from 0 to 13
+[h264 @ 0x79157fb700] decode_slice_header error

@@ -51,3 +51,17 @@ adb logcat | grep -Ei "filmcraft|rust|wgpu|vulkan|AndroidRuntime"
 - **硬解**：只有 macOS VideoToolbox；Android 需新写 MediaCodec 后端（上游 `crates/platform` 是唯一允许 `unsafe` 的 crate，按 AGENTS.md §0.3 要在那里加）。
 - **触屏 UI**：egui 版界面是按桌面设计的（1600×980、143 个快捷键、悬停菜单），手机上需要单独做触控布局。
 - **`unsafe_code` 政策**：本 crate 用 `deny` + 入口处 `#[allow(unsafe_code)]`（`#[unsafe(no_mangle)]` 需要），与 `crates/platform` 的既有先例一致；上游若合并，建议同步更新 ADR 0001。
+
+## 6. Gradle 外壳（本仓库已附）
+
+`patches/filmcraft-android/android/` 是一份可直接用的 Gradle 工程（AGP 9.1.0 / Gradle 9.3.1 / JDK 21）：
+
+```bash
+cargo +stable ndk -t arm64-v8a -o apps/filmcraft-android/jniLibs build --release -p filmcraft-android
+cd apps/filmcraft-android/android && ./gradlew assembleRelease -Dhttp.nonProxyHosts='*'
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell am start -n ai.storyteller.filmcraft/.MainActivity
+```
+
+release 产物实测：`.so` 45 MB、APK 42 MB（debug 分别是 855 MB / 不出包）；`jniLibs` 通过
+`sourceSets { main { jniLibs.srcDirs = ['../../jniLibs'] } }` 指向 cargo-ndk 的输出目录。
