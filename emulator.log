@@ -526,3 +526,327 @@ data=
 0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
 data=
 0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+INFO         | Destroyed VkDevice:0x790ae24010
+INFO         | Destroyed VkInstance:0x7906dadc00 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x7915264a00] no frame!
+[h264 @ 0x7915264a00] no frame!
+INFO         | Created VkInstance:0x7906dadc00 for application:'wgpu' engine:'wgpu-hal'.
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+INFO         | Created VkDevice:0x790ae24010 for application:'wgpu' instance:0x7906dadc00. ASTC emulation:off CPU decoding:off.
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+INFO         | Destroyed VkDevice:0x790ae24010
+INFO         | Destroyed VkInstance:0x7906dadc00 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x7915267200] no frame!
+[h264 @ 0x7915267200] no frame!
+INFO         | Created VkInstance:0x7906e2fc00 for application:'wgpu' engine:'wgpu-hal'.
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+INFO         | Created VkDevice:0x790720c010 for application:'wgpu' instance:0x7906e2fc00. ASTC emulation:off CPU decoding:off.
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+INFO         | Destroyed VkDevice:0x790720c010
+INFO         | Destroyed VkInstance:0x7906e2fc00 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x7915266d00] no frame!
+[h264 @ 0x7915266d00] no frame!
+INFO         | Created VkInstance:0x7906e32400 for application:'wgpu' engine:'wgpu-hal'.
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+INFO         | Created VkDevice:0x79073a4010 for application:'wgpu' instance:0x7906e32400. ASTC emulation:off CPU decoding:off.
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+INFO         | Destroyed VkDevice:0x79073a4010
+INFO         | Destroyed VkInstance:0x7906e32400 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x79157fa300] no frame!
+[h264 @ 0x79157fa300] no frame!
+INFO         | Created VkInstance:0x7906e23400 for application:'wgpu' engine:'wgpu-hal'.
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+INFO         | Created VkDevice:0x790ae24010 for application:'wgpu' instance:0x7906e23400. ASTC emulation:off CPU decoding:off.
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+INFO         | Destroyed VkDevice:0x790ae24010
+INFO         | Destroyed VkInstance:0x7906e23400 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x79157f9900] no frame!
+[h264 @ 0x79157f9900] no frame!
+INFO         | Created VkInstance:0x7906e62800 for application:'wgpu' engine:'wgpu-hal'.
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+INFO         | Created VkDevice:0x790b548010 for application:'wgpu' instance:0x7906e62800. ASTC emulation:off CPU decoding:off.
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+INFO         | Destroyed VkDevice:0x790b548010
+INFO         | Destroyed VkInstance:0x7906e62800 for application:'wgpu' engine:'wgpu-hal'.
+INFO         | Created VkInstance:0x7906e66400 for application:'wgpu' engine:'wgpu-hal'.
+[h264 @ 0x7915267200] no frame!
+[h264 @ 0x7915267200] no frame!
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000338000
+../../third_party/SwiftShader/src/Vulkan/VkPhysicalDevice.cpp:649 WARNING: UNSUPPORTED: curExtension->sType: 1000437000
+INFO         | Created VkDevice:0x790ae24010 for application:'wgpu' instance:0x7906e66400. ASTC emulation:off CPU decoding:off.
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
+data=
+0x40 0x01 0x0c 0x01 0xff 0xff 0x01 0x60 
+0x00 0x00 0x03 0x00 0x90 0x00 0x00 0x03 
+0x00 0x00 0x03 0x00 0x3c 0x92 0x80 0x90 
+0x00 
+data=
+0x42 0x01 0x01 0x01 0x60 0x00 0x00 0x03 
+0x00 0x90 0x00 0x00 0x03 0x00 0x00 0x03 
+0x00 0x3c 0xa0 0x0a 0x08 0x0f 0x16 0x59 
+0x2a 0x49 0x32 0xbc 0x05 0xa0 0x20 0x00 
+data=
+0x44 0x01 0xc1 0x72 0xb4 0x62 0x40 
