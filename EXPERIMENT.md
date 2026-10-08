@@ -211,7 +211,8 @@ I main: filmcraft-android: 自检: 解码器 MediaCodec H.264 | 样本 30 个 �
 | 安装与启动 | ✅ 42 MB release APK 直接装、正常启动、完整桌面 UI 渲染（`shots/stage9-real-1.png`） |
 | **硬解** | ✅ 用**厂商硬件解码器**：H.264 `c2.mtk.avc.decoder`、HEVC `c2.mtk.hevc.decoder`，各 30 样本 → 30 帧，计数 30/1/0/0，无回退 |
 | 触摸输入 | ✅ **可用**（先前误判）：`input:` 日志显示 winit/egui 收到 `Touch` 事件且坐标换算正确（像素 ÷ 2.5 = pt）；当时"点不动"是因为按横屏截图估的坐标、而设备方向在变，加上 `dumpsys gfxinfo` 不统计 SurfaceView 的 GL 帧。修正坐标后：File 菜单能打开、系统选择器能唤起 |
-| SAF 导入 | 🔶 真机选择器能打开并选中文件；完整导入待手机解锁后用 File ▸ Import 复跑一遍（熄屏时截图返回黑帧） |
+| SAF 导入 | ✅ **真机全链路通过**：`File ▸ Import…` → vivo 文件选择器 → 选中 `saf-test.mp4` → Project 面板出现 `1_saf-test.mp4`（0:02，带缩略图，`shots/stage12-real-project.png`） |
+| 手机工作区 | ✅ `PHONE` 工作区在真机上生效（Program 上半屏 / Timeline·Project·Tools 下半屏） |
 
 ## 环境踩坑总汇（可复现）
 
