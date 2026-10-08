@@ -1,0 +1,402 @@
+diff --git a/crates/ui-egui/Cargo.toml b/crates/ui-egui/Cargo.toml
+index ad3dc7b..eb2fc53 100644
+--- a/crates/ui-egui/Cargo.toml
++++ b/crates/ui-egui/Cargo.toml
+@@ -19,18 +19,23 @@ serde = { workspace = true }
+ serde_json = { workspace = true }
+ log = { workspace = true }
+ 
+-rfd = { workspace = true }
+ png = "0.18"
+ base64 = "0.22"
+ 
+ [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ # Control-channel tokens.
+ getrandom = "0.4"
+-# Create ▸ Clipboard (images; already in the tree through egui-winit).
+-arboard = { version = "3.6", default-features = false, features = ["image-data"] }
+ # Waits for native file pickers off the UI thread (already in the tree through wgpu).
+ pollster = "1.0"
+ 
++# The native file dialogs and the system clipboard. Neither has an Android backend — `rfd` does
++# not even compile for it (its platform traits go unimplemented) — so Android leaves both out and
++# uses `src/fd.rs`'s host seam (installed by `apps/printcraft-android`) instead; the clipboard
++# falls back to the app's own snapshot.
++[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))'.dependencies]
++rfd = { workspace = true }
++arboard = { version = "3.6", default-features = false, features = ["image-data"] }
++
+ [target.'cfg(windows)'.dependencies]
+ # Auto interface language: the Windows display language, without starting a process.
+ sys-locale = "0.3"
+diff --git a/crates/ui-egui/src/actions_ui.rs b/crates/ui-egui/src/actions_ui.rs
+index 01c958e..f595b72 100644
+--- a/crates/ui-egui/src/actions_ui.rs
++++ b/crates/ui-egui/src/actions_ui.rs
+@@ -46,7 +46,7 @@ impl PdfCraftApp {
+         #[cfg(not(target_arch = "wasm32"))]
+         let dir = match &self.export_dir_override {
+             Some(d) => Some(std::path::PathBuf::from(d)),
+-            None => rfd::FileDialog::new().set_title(tl!("Choose a folder for the results").to_string()).pick_folder(),
++            None => crate::fd::FileDialog::new().set_title(tl!("Choose a folder for the results").to_string()).pick_folder(),
+         };
+         #[cfg(not(target_arch = "wasm32"))]
+         let Some(dir) = dir else { return };
+@@ -128,7 +128,7 @@ impl PdfCraftApp {
+         {
+             let paths = match &self.action_files_override {
+                 Some(p) => p.iter().map(std::path::PathBuf::from).collect(),
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .set_title(crate::i18n::fmt(tl!("Files for {name}"), &[("name", &action.name)]))
+                     .add_filter("PDF", &["pdf"])
+                     .pick_files()
+diff --git a/crates/ui-egui/src/comment_props.rs b/crates/ui-egui/src/comment_props.rs
+index 6d535eb..059a971 100644
+--- a/crates/ui-egui/src/comment_props.rs
++++ b/crates/ui-egui/src/comment_props.rs
+@@ -34,7 +34,7 @@ impl PdfCraftApp {
+         let picked = match self.attach_override.take() {
+             Some(f) => Some(f),
+             #[cfg(not(target_arch = "wasm32"))]
+-            None => rfd::FileDialog::new().set_title(tl!("Attach a file")).pick_file().and_then(|p| {
++            None => crate::fd::FileDialog::new().set_title(tl!("Attach a file")).pick_file().and_then(|p| {
+                 let data = std::fs::read(&p).ok()?;
+                 Some((p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(), data))
+             }),
+diff --git a/crates/ui-egui/src/content_ui.rs b/crates/ui-egui/src/content_ui.rs
+index b008a89..2953b60 100644
+--- a/crates/ui-egui/src/content_ui.rs
++++ b/crates/ui-egui/src/content_ui.rs
+@@ -412,7 +412,7 @@ impl crate::PdfCraftApp {
+                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
+                 // Tests and automation set `save_override` and never see a native dialog.
+                 Some(_) => None,
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .add_filter(tl!("Images").to_string(), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                     .set_title(tl!("Choose an image"))
+                     .pick_file(),
+@@ -437,7 +437,7 @@ impl crate::PdfCraftApp {
+             let picked = match self.save_override.clone() {
+                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
+                 Some(_) => None,
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                     .set_title(tl!("Replace image"))
+                     .pick_file(),
+@@ -482,7 +482,7 @@ impl crate::PdfCraftApp {
+             let picked = match self.save_override.clone() {
+                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
+                 Some(_) => None,
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                     .set_title(tl!("Select Icon"))
+                     .pick_file(),
+@@ -506,7 +506,7 @@ impl crate::PdfCraftApp {
+             let picked = match self.save_override.clone() {
+                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
+                 Some(_) => None,
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                     .set_title(tl!("Replace image"))
+                     .pick_file(),
+diff --git a/crates/ui-egui/src/create_ui.rs b/crates/ui-egui/src/create_ui.rs
+index 2ea75cb..a07e29f 100644
+--- a/crates/ui-egui/src/create_ui.rs
++++ b/crates/ui-egui/src/create_ui.rs
+@@ -69,7 +69,7 @@ pub enum Clip {
+ }
+ 
+ /// An image on the system clipboard, or else its text.
+-#[cfg(not(target_arch = "wasm32"))]
++#[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
+ fn read_clipboard() -> Option<Clip> {
+     let mut cb = arboard::Clipboard::new().ok()?;
+     if let Ok(img) = cb.get_image() {
+@@ -78,6 +78,13 @@ fn read_clipboard() -> Option<Clip> {
+     cb.get_text().ok().filter(|t| !t.trim().is_empty()).map(Clip::Text)
+ }
+ 
++/// Android has no system-clipboard integration yet (arboard has no backend for it); the app's own
++/// snapshot still pastes (see `zoom_snap`).
++#[cfg(target_os = "android")]
++fn read_clipboard() -> Option<Clip> {
++    None
++}
++
+ fn png_from_rgba(width: usize, height: usize, rgba: &[u8]) -> Result<Vec<u8>, String> {
+     let (w, h) = (u32::try_from(width).map_err(|e| e.to_string())?, u32::try_from(height).map_err(|e| e.to_string())?);
+     if w == 0 || h == 0 || rgba.len() != width * height * 4 {
+@@ -166,7 +173,7 @@ impl PdfCraftApp {
+     pub(crate) fn create_from_images_dialog(&mut self) {
+         #[cfg(not(target_arch = "wasm32"))]
+         {
+-            let Some(files) = rfd::FileDialog::new()
++            let Some(files) = crate::fd::FileDialog::new()
+                 .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                 .set_title(tl!("Choose images"))
+                 .pick_files()
+@@ -284,7 +291,7 @@ impl PdfCraftApp {
+         {
+             let path = match &self.save_override {
+                 Some(p) => Some(p.clone()),
+-                None => rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(&name).save_file().map(|p| p.to_string_lossy().into_owned()),
++                None => crate::fd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(&name).save_file().map(|p| p.to_string_lossy().into_owned()),
+             };
+             let Some(path) = path else { return };
+             match crate::editing::write_atomically(&path, &bytes) {
+diff --git a/crates/ui-egui/src/editing.rs b/crates/ui-egui/src/editing.rs
+index 71e83f1..2807542 100644
+--- a/crates/ui-egui/src/editing.rs
++++ b/crates/ui-egui/src/editing.rs
+@@ -223,7 +223,7 @@ impl PdfCraftApp {
+     #[cfg(not(target_arch = "wasm32"))]
+     fn ask_save_path(&self, name: &str) -> Option<String> {
+         let name = if name.to_ascii_lowercase().ends_with(".pdf") { name.to_string() } else { format!("{name}.pdf") };
+-        rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(name).save_file().map(|p| p.to_string_lossy().into_owned())
++        crate::fd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(name).save_file().map(|p| p.to_string_lossy().into_owned())
+     }
+ 
+     #[cfg(target_arch = "wasm32")]
+diff --git a/crates/ui-egui/src/export_ui.rs b/crates/ui-egui/src/export_ui.rs
+index 4913bfa..fa2ce03 100644
+--- a/crates/ui-egui/src/export_ui.rs
++++ b/crates/ui-egui/src/export_ui.rs
+@@ -219,7 +219,7 @@ impl PdfCraftApp {
+         {
+             let dir = match &self.export_dir_override {
+                 Some(d) => Some(std::path::PathBuf::from(d)),
+-                None => rfd::FileDialog::new().set_title(tl!("Choose a folder for the exported files").to_string()).pick_folder(),
++                None => crate::fd::FileDialog::new().set_title(tl!("Choose a folder for the exported files").to_string()).pick_folder(),
+             };
+             let Some(dir) = dir else { return };
+             let st = status.clone();
+diff --git a/crates/ui-egui/src/files.rs b/crates/ui-egui/src/files.rs
+index 9966d49..fd66ec3 100644
+--- a/crates/ui-egui/src/files.rs
++++ b/crates/ui-egui/src/files.rs
+@@ -117,12 +117,12 @@ impl PdfCraftApp {
+ 
+     fn pick_files(&mut self, purpose: FilePurpose, multiple: bool) {
+         #[cfg(not(target_arch = "wasm32"))]
+-        self.pick(crate::pickers::PickFor::Files(purpose), rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]), multiple);
++        self.pick(crate::pickers::PickFor::Files(purpose), crate::fd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]), multiple);
+         #[cfg(target_arch = "wasm32")]
+         {
+             let requests = self.requests.clone();
+             wasm_bindgen_futures::spawn_local(async move {
+-                let dialog = rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]);
++                let dialog = crate::fd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]);
+                 let handles = if multiple { dialog.pick_files().await.unwrap_or_default() } else { dialog.pick_file().await.into_iter().collect() };
+                 let mut files = Vec::new();
+                 for h in handles {
+@@ -264,7 +264,7 @@ impl PdfCraftApp {
+         {
+             let dir = match &self.export_dir_override {
+                 Some(d) => Some(std::path::PathBuf::from(d)),
+-                None => rfd::FileDialog::new().set_title(title).pick_folder(),
++                None => crate::fd::FileDialog::new().set_title(title).pick_folder(),
+             };
+             let Some(dir) = dir else { return 0 };
+             for (name, bytes) in named {
+@@ -385,7 +385,7 @@ impl PdfCraftApp {
+             let picked = match self.save_override.clone() {
+                 Some(p) if [".xfdf", ".fdf", ".xml", ".csv", ".txt"].iter().any(|e| p.ends_with(e)) => Some(std::path::PathBuf::from(p)),
+                 Some(_) => None,
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .add_filter(tl!("Comment and form data").to_string(), &["xfdf", "fdf", "xml", "csv", "txt"])
+                     .set_title(tl!("Import data").to_string())
+                     .pick_file(),
+@@ -415,7 +415,7 @@ impl PdfCraftApp {
+         {
+             let path = match self.save_override.clone() {
+                 Some(p) => Some(std::path::PathBuf::from(p)),
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .set_title(tl!("Export").to_string())
+                     .add_filter(ext.to_uppercase(), &[ext])
+                     .set_file_name(format!("{stem}.{ext}"))
+@@ -438,7 +438,7 @@ impl PdfCraftApp {
+     pub fn merge_data_dialog(&mut self) {
+         #[cfg(not(target_arch = "wasm32"))]
+         {
+-            let paths = rfd::FileDialog::new()
++            let paths = crate::fd::FileDialog::new()
+                 .set_title(tl!("Select data files to merge").to_string())
+                 .add_filter(tl!("Form data and PDF forms").to_string(), &["fdf", "xfdf", "pdf"])
+                 .pick_files()
+@@ -469,7 +469,7 @@ impl PdfCraftApp {
+         {
+             let path = match self.save_override.clone() {
+                 Some(p) => Some(std::path::PathBuf::from(p)),
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .set_title(tl!("Save the spreadsheet").to_string())
+                     .add_filter("CSV", &["csv"])
+                     .set_file_name("report.csv")
+@@ -501,7 +501,7 @@ impl PdfCraftApp {
+                 Some(p) => Some(std::path::PathBuf::from(p)),
+                 None => {
+                     let title = if comments { tl!("Export comments") } else { tl!("Export form data") };
+-                    let d = rfd::FileDialog::new().set_title(title).set_file_name(format!("{stem}.xfdf"));
++                    let d = crate::fd::FileDialog::new().set_title(title).set_file_name(format!("{stem}.xfdf"));
+                     let d = if comments {
+                         d.add_filter("XFDF", &["xfdf"]).add_filter("FDF", &["fdf"])
+                     } else {
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 1213d86..b1210e5 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -53,6 +53,7 @@ mod autoscroll;
+ mod dialogs;
+ mod edit_text_ui;
+ mod editing;
++pub mod fd;
+ mod files;
+ pub mod fill_sign;
+ pub mod forms_ui;
+@@ -799,7 +800,7 @@ impl PdfCraftApp {
+             }
+             (Ok(bytes), false) => {
+                 #[cfg(not(target_arch = "wasm32"))]
+-                if let Some(path) = rfd::FileDialog::new().set_file_name(&att.name).save_file() {
++                if let Some(path) = crate::fd::FileDialog::new().set_file_name(&att.name).save_file() {
+                     match std::fs::write(&path, &bytes) {
+                         Ok(()) => self.notify_fmt("Saved {name}", &[("name", &path.display().to_string())]),
+                         Err(e) => self.notify_fmt("Couldn't save: {e}", &[("e", &e.to_string())]),
+@@ -850,7 +851,7 @@ impl PdfCraftApp {
+         #[cfg(not(target_arch = "wasm32"))]
+         self.pick(
+             pickers::PickFor::Open,
+-            rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).add_filter(tl!("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE),
++            crate::fd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).add_filter(tl!("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE),
+             false,
+         );
+         // Browsers pick files asynchronously; the bytes arrive through `inbox`.
+@@ -858,7 +859,7 @@ impl PdfCraftApp {
+         {
+             let inbox = self.inbox.clone();
+             wasm_bindgen_futures::spawn_local(async move {
+-                if let Some(h) = rfd::AsyncFileDialog::new()
++                if let Some(h) = crate::fd::AsyncFileDialog::new()
+                     .add_filter("PDF", &["pdf"])
+                     .add_filter(tl!("Images and text"), &create_ui::CONVERTIBLE)
+                     .pick_file()
+diff --git a/crates/ui-egui/src/marks_ui.rs b/crates/ui-egui/src/marks_ui.rs
+index 2812652..4c5838f 100644
+--- a/crates/ui-egui/src/marks_ui.rs
++++ b/crates/ui-egui/src/marks_ui.rs
+@@ -411,7 +411,7 @@ fn file_source(ui: &mut egui::Ui, d: &mut MarksDraft, kind: MarkKind) {
+     ui.horizontal(|ui| {
+         #[cfg(not(target_arch = "wasm32"))]
+         if ui.button(tl!("Browse…")).clicked()
+-            && let Some(p) = rfd::FileDialog::new()
++            && let Some(p) = crate::fd::FileDialog::new()
+                 .add_filter(tl!("PDF or image"), &["pdf", "png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                 .pick_file()
+         {
+diff --git a/crates/ui-egui/src/measure_ui.rs b/crates/ui-egui/src/measure_ui.rs
+index 4743b7d..781deaa 100644
+--- a/crates/ui-egui/src/measure_ui.rs
++++ b/crates/ui-egui/src/measure_ui.rs
+@@ -463,7 +463,7 @@ fn export_csv(app: &mut PdfCraftApp) {
+                 .export_dir_override
+                 .as_ref()
+                 .map(|d| std::path::PathBuf::from(d).join("measurements.csv"))
+-                .or_else(|| rfd::FileDialog::new().set_file_name("measurements.csv").add_filter("CSV", &["csv"]).save_file())
++                .or_else(|| crate::fd::FileDialog::new().set_file_name("measurements.csv").add_filter("CSV", &["csv"]).save_file())
+             {
+                 match crate::editing::write_atomically(&path.to_string_lossy(), csv.as_bytes()) {
+                     Ok(()) => app.notify(tl!("Saved measurements.")),
+diff --git a/crates/ui-egui/src/ocr_ui.rs b/crates/ui-egui/src/ocr_ui.rs
+index c174e12..7da3600 100644
+--- a/crates/ui-egui/src/ocr_ui.rs
++++ b/crates/ui-egui/src/ocr_ui.rs
+@@ -193,7 +193,7 @@ impl PdfCraftApp {
+         #[cfg(not(target_arch = "wasm32"))]
+         let dir = match &self.export_dir_override {
+             Some(d) => Some(std::path::PathBuf::from(d)),
+-            None => rfd::FileDialog::new().set_title(tl!("Choose a folder for the searchable files").to_string()).pick_folder(),
++            None => crate::fd::FileDialog::new().set_title(tl!("Choose a folder for the searchable files").to_string()).pick_folder(),
+         };
+         #[cfg(not(target_arch = "wasm32"))]
+         let Some(dir) = dir else { return };
+diff --git a/crates/ui-egui/src/pickers.rs b/crates/ui-egui/src/pickers.rs
+index 5f64dcd..f9d14e0 100644
+--- a/crates/ui-egui/src/pickers.rs
++++ b/crates/ui-egui/src/pickers.rs
+@@ -98,7 +98,7 @@ impl Pickers {
+ impl PdfCraftApp {
+     /// Show a native picker for `pick_for` without blocking the frame. The choice is used on a
+     /// later frame by [`Self::process_picked`].
+-    pub(crate) fn pick(&mut self, pick_for: PickFor, dialog: rfd::AsyncFileDialog, multiple: bool) {
++    pub(crate) fn pick(&mut self, pick_for: PickFor, dialog: crate::fd::AsyncFileDialog, multiple: bool) {
+         if self.pickers.showing.swap(true, Ordering::SeqCst) {
+             return;
+         }
+diff --git a/crates/ui-egui/src/print_ui.rs b/crates/ui-egui/src/print_ui.rs
+index 76fcb7c..ef61391 100644
+--- a/crates/ui-egui/src/print_ui.rs
++++ b/crates/ui-egui/src/print_ui.rs
+@@ -184,7 +184,7 @@ impl PdfCraftApp {
+                     #[cfg(not(target_arch = "wasm32"))]
+                     None => {
+                         let stem = name.trim_end_matches(".pdf").trim_end_matches(".PDF");
+-                        rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{stem} (print).pdf")).save_file()
++                        crate::fd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{stem} (print).pdf")).save_file()
+                     }
+                     #[cfg(target_arch = "wasm32")]
+                     None => None,
+diff --git a/crates/ui-egui/src/sign_ui.rs b/crates/ui-egui/src/sign_ui.rs
+index 4baf7ad..e9b3134 100644
+--- a/crates/ui-egui/src/sign_ui.rs
++++ b/crates/ui-egui/src/sign_ui.rs
+@@ -298,7 +298,7 @@ impl PdfCraftApp {
+         let path = match self.save_override.clone() {
+             Some(p) => Some(PathBuf::from(p)),
+             #[cfg(not(target_arch = "wasm32"))]
+-            None => rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{stem}_signed.pdf")).save_file(),
++            None => crate::fd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{stem}_signed.pdf")).save_file(),
+             #[cfg(target_arch = "wasm32")]
+             None => None,
+         };
+@@ -488,7 +488,7 @@ fn configure(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool {
+                 ui.add(egui::TextEdit::singleline(&mut n.file).desired_width(220.0)).labelled_by(l.id);
+                 #[cfg(not(target_arch = "wasm32"))]
+                 if ui.button(tl!("Browse…")).clicked()
+-                    && let Some(p) = rfd::FileDialog::new().add_filter(tl!("Digital ID"), &["p12", "pfx"]).pick_file()
++                    && let Some(p) = crate::fd::FileDialog::new().add_filter(tl!("Digital ID"), &["p12", "pfx"]).pick_file()
+                 {
+                     n.file = p.to_string_lossy().into_owned();
+                 }
+diff --git a/crates/ui-egui/src/stamps_ui.rs b/crates/ui-egui/src/stamps_ui.rs
+index e80a37b..f2e77f9 100644
+--- a/crates/ui-egui/src/stamps_ui.rs
++++ b/crates/ui-egui/src/stamps_ui.rs
+@@ -136,7 +136,7 @@ impl PdfCraftApp {
+             let picked = match self.save_override.clone() {
+                 Some(p) if [".png", ".jpg", ".pdf"].iter().any(|e| p.ends_with(e)) => Some(std::path::PathBuf::from(p)),
+                 Some(_) => None,
+-                None => rfd::FileDialog::new()
++                None => crate::fd::FileDialog::new()
+                     .add_filter(tl!("PDF or image"), &["pdf", "png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                     .set_title(tl!("Select a file for the stamp"))
+                     .pick_file(),
+diff --git a/crates/ui-egui/src/zoom_snap.rs b/crates/ui-egui/src/zoom_snap.rs
+index 9ee9c70..1ecd742 100644
+--- a/crates/ui-egui/src/zoom_snap.rs
++++ b/crates/ui-egui/src/zoom_snap.rs
+@@ -133,7 +133,7 @@ impl PdfCraftApp {
+             return Err(e);
+         }
+         let (w, h) = (out.width, out.height);
+-        #[cfg(not(target_arch = "wasm32"))]
++        #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
+         if self.system_clipboard {
+             let img = arboard::ImageData { width: w as usize, height: h as usize, bytes: std::borrow::Cow::Borrowed(&out.rgba) };
+             arboard::Clipboard::new().and_then(|mut c| c.set_image(img)).map_err(|e| e.to_string())?;
