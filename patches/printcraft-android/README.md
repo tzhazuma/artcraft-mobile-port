@@ -2,7 +2,8 @@
 
 Upstream PrintCraft (repo `storytold/printcraft`, crates `pdfcraft*`) has no mobile code. This is
 the Android integration: a new L6 app crate (`apps/printcraft-android`) that reuses the desktop
-engine and egui UI unchanged, a Gradle shell, and one small patch to the shared UI crate.
+engine and egui UI unchanged, a Gradle shell, and one seam in the shared UI crate plus the
+call-site renames every upstream bump needs.
 
 PrintCraft is a **pure-Rust** application: the PDF parser, content-stream interpreter, rasterizer
 and text extractor are its own crates (hayro, vendored and patched upstream), and the font work is
@@ -55,13 +56,15 @@ Registering the layer for `cargo xtask ci` (optional, does not affect the build)
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/28.2.13676358"
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 
-# Rust (release; thin LTO + codegen-units 1, ~6 minutes cold)
+# Rust (release; thin LTO + codegen-units 1, ~7 minutes cold). The remap matters: without it
+# the shipped .so contains 1 227 `/Users/<builder>/...` strings (`strings libmain.so | grep -c`).
+export RUSTFLAGS="--remap-path-prefix=$HOME=/build --remap-path-prefix=$PWD=/src"
 cargo +stable ndk -t arm64-v8a -o apps/printcraft-android/jniLibs build --release -p printcraft-android
 #  → apps/printcraft-android/jniLibs/arm64-v8a/libmain.so
 
-# APK (manual Gradle 9.3.1 — the wrapper cannot download behind the local proxy)
+# APK (Gradle wrapper 9.3.1; the distribution is already in ~/.gradle/wrapper)
 cd apps/printcraft-android/android
-~/artcraft-mobile/tools/gradle-9.3.1/bin/gradle assembleRelease --no-daemon -Dhttp.nonProxyHosts='*'
+./gradlew --no-daemon assembleRelease
 #  → app/build/outputs/apk/release/app-release.apk
 
 adb install -r app/build/outputs/apk/release/app-release.apk
@@ -71,6 +74,14 @@ adb logcat | grep -Ei "printcraft|pdfcraft|SafBridge|wgpu|panic|AndroidRuntime"
 
 Release only: a debug `.so` is ~850 MB. The release build type uses the debug signing config, so
 `adb install -r` works on any device/emulator.
+
+On this machine the harness that works is `~/port-scripts/fix-java-build.sh printcraft` (run from
+the clone): it deletes Gradle's `javac` intermediates, which is what actually lands a new
+`MainActivity.java`/`SafBridge.java` in the dex. Its final check looks for `safPickMedia`, the JNI
+name the other ports use — PrintCraft's is `safPickDocuments`, so a **successful** build still
+exits 1 and does not copy the APK; take `app/build/outputs/apk/release/app-release.apk` yourself.
+`~/port-scripts/rebuild-so.sh` only knows `~/artcraft-android/src/<app>` and PrintCraft lives in
+`~/artcraft-mobile/printcraft`, so run the cargo-ndk line above from the clone.
 
 | Setting | Value |
 |---|---|
@@ -96,31 +107,39 @@ depends on `arboard`. Neither crate has an Android backend:
 - **`arboard` 3.6.1** has no Android backend either: `platform::Clipboard` does not exist for
   Android, so `arboard` fails to compile too.
 
-So the port needs one small seam in the shared UI crate. The patch is **402 lines of diff over 17
-files, of which ~35 lines are real changes** (the rest is context), plus one new 197-line file.
+So the port needs one seam in the shared UI crate. After the 2026-10-24 sync the patch is **550
+lines of diff over 21 files: 73 insertions and 53 deletions, of which 47 lines are the mechanical
+`rfd::` → `crate::fd::` renames** (the rest is context and the clipboard gates), plus one new
+221-line file.
 
 ### 3.1 What the patch does
 
 1. **New file `crates/ui-egui/src/fd.rs`** — the seam. On every platform `rfd` supports it is a
    re-export (`pub use rfd::{AsyncFileDialog, FileDialog, FileHandle}`); on Android it is a
    lookalike with the same builder API (`new`, `add_filter`, `set_title`, `set_file_name`,
-   `pick_file`, `pick_files`, `pick_folder`, `save_file`, and the async forms) that asks a `Host`
-   the app installs with `set_host`. The module documents why: an Android picker must be started on
+   `set_directory`, `pick_file`, `pick_files`, `pick_folder`, `save_file`, and the async forms —
+   upstream now uses the async forms for every picker, see §3.3) that asks a `Host` the app
+   installs with `set_host`. The module documents why: an Android picker must be started on
    the UI thread and answered later, which a blocking dialog cannot do (the frame that would receive
    the answer is the frame it blocks).
 2. **`mod fd;`** added to `crates/ui-egui/src/lib.rs` (next to `mod files;`).
-3. **32 call sites renamed** `rfd::FileDialog` → `crate::fd::FileDialog` and
-   `rfd::AsyncFileDialog` → `crate::fd::AsyncFileDialog`. This is purely mechanical and
-   platform-neutral: on the desktop the types are still rfd's. The two prose mentions of `rfd` in
-   `pickers.rs`'s module docs were left alone deliberately.
+3. **47 call sites renamed** in 20 files: `rfd::FileDialog` / `rfd::AsyncFileDialog` /
+   `rfd::FileHandle` → `crate::fd::…`. This is purely mechanical and platform-neutral: on the
+   desktop the types are still rfd's. The sync added four files with call sites of their own
+   (`combine_ui.rs`, `fill_sign.rs`, `folders_ui.rs`, `image_pick.rs`), so the rename is not a
+   one-off — see §3.2. The prose mentions of `rfd` in module docs were left alone deliberately.
 4. **`crates/ui-egui/Cargo.toml`**: `rfd` and `arboard` moved from
    `[target.'cfg(not(target_arch = "wasm32"))'.dependencies]` to
    `[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))'.dependencies]`.
    `pollster` and `getrandom` stay (both are pure Rust and work on Android).
-5. **Two `arboard` call sites gated**:
+5. **Four `arboard` call sites gated**:
    - `create_ui.rs`: `read_clipboard()` is now `cfg(all(not(wasm32), not(android)))` with an
      Android twin that returns `None` (the app's own snapshot still pastes);
-   - `zoom_snap.rs`: the `system_clipboard` write is `cfg(all(not(wasm32), not(android)))`.
+   - `zoom_snap.rs`: the `system_clipboard` write is `cfg(all(not(wasm32), not(android)))`;
+   - `image_pick.rs`: `put_file_on_clipboard` writes the private file and skips the system
+     clipboard on Android;
+   - `content_ui.rs`: Copy Image keeps the app's own `last_copied_image` and skips the system
+     clipboard on Android.
 
 ### 3.2 Re-applying after an upstream bump
 
@@ -131,12 +150,33 @@ sites, redo step 3 mechanically:
 ```bash
 cd <printcraft-clone>/crates/ui-egui/src
 grep -rn "rfd::" .                      # every remaining hit must become crate::fd::
-sed -i '' 's/rfd::AsyncFileDialog/crate::fd::AsyncFileDialog/g; s/rfd::FileDialog/crate::fd::FileDialog/g' *.rs
+sed -i '' 's/rfd::AsyncFileDialog/crate::fd::AsyncFileDialog/g; s/rfd::FileDialog/crate::fd::FileDialog/g; s/rfd::FileHandle/crate::fd::FileHandle/g' *.rs
 ```
 
 (Do not rewrite the prose in `pickers.rs`'s `//!` header.) Then re-apply steps 1, 2, 4 and 5.
 
-### 3.3 Reusable beyond PrintCraft
+### 3.3 The 2026-10-24 sync (upstream `c894928e`, 2 202 commits)
+
+The stash's 16 conflicting files under `crates/ui-egui` conflicted because upstream had rewritten
+every native picker: the blocking `rfd::FileDialog` calls the old patch routed are gone, replaced
+by `rfd::AsyncFileDialog` built in one place and answered through `pickers::ask` on a worker
+thread. That is a better shape for Android — the old shim could not answer a blocking open at all
+— so no conflict was resolved by keeping both sides:
+
+- **Upstream won wherever it had rewritten the code**; all 47 surviving `rfd::` code sites were
+  then re-routed to `crate::fd::` mechanically (including the four new files listed in §3.1).
+- **The seam is still the port's**: upstream still has no Android backend for `rfd` or `arboard`,
+  so `fd.rs`, `pub mod fd`, the `Cargo.toml` target gate, the four clipboard gates and the OCR
+  patch survive unchanged in intent.
+- `RenderRequest` gained `preview`; the start-up self-test passes `false` (it is a fidelity
+  render, not a preview).
+- `Cargo.lock` was taken from upstream and regenerated by cargo, never hand-merged.
+
+Upstream's async rewrite also removes the old limitation that synchronous dialogs were inert on
+Android: every dialog it opens now goes through `pickers::ask`, and on Android that future is the
+SAF host. `FileDialog` (the blocking shim) is kept for API parity but no longer called.
+
+### 3.4 Reusable beyond PrintCraft
 
 `fd.rs`'s `Host` trait is deliberately app-neutral: `open` (returns real paths),
 `save` (reserves a scratch path) and `folder`. If another Crafting App ever grows a dialog inside a
@@ -180,15 +220,9 @@ lightcraft and effectcraft keep `rfd` in their desktop entry crate, and photocra
 
 ## 5. Known gaps
 
-- **The synchronous dialogs are inert on Android.** ~20 places call `FileDialog::pick_file` /
-  `pick_files` and use the answer inside the same frame (Attach a file, Import data, Merge data
-  files, Choose a digital ID, …). A picker cannot be answered in that frame, so the shim answers
-  "cancelled" and logs which call it was. Making them work means giving each one an asynchronous
-  follow-up (the shape `pickers::Pickers` already has) — a UI change, not a platform one. The
-  critical path (open, save, save as, export destinations) is wired.
-- **The system clipboard is not wired** (`arboard` has no Android backend). The app's own snapshot
-  (`Edit ▸ Paste` from `zoom_snap`) still works; the Android clipboard needs a `ClipboardManager`
-  JNI bridge.
+- **The system clipboard is not wired** (`arboard` has no Android backend). The four write/read
+  sites are gated; the app's own snapshot (`Edit ▸ Paste` from `zoom_snap`) still works. The
+  Android clipboard needs a `ClipboardManager` JNI bridge.
 - **Folder questions** answer with the app's own `exports/` directory: SAF's tree picker returns a
   document tree the engine cannot write to by path (`ACTION_OPEN_DOCUMENT_TREE` is not wired).
 - **Printing** (`pdfcraft-print`) spools through `lp`/`lpstat` on Unix, which does not exist on
@@ -223,7 +257,7 @@ Build and install:
 ```
 cargo +stable ndk -t arm64-v8a -o apps/printcraft-android/jniLibs build --release -p printcraft-android
   → jniLibs/arm64-v8a/libmain.so            50,788,928 bytes
-~/artcraft-mobile/tools/gradle-9.3.1/bin/gradle assembleRelease --no-daemon -Dhttp.nonProxyHosts='*'
+(cd apps/printcraft-android/android && ./gradlew --no-daemon assembleRelease)
   → app/build/outputs/apk/release/app-release.apk   48,731,622 bytes
   → dist/PrintCraft-0.2.1-android-arm64.apk         sha256 cbe6001bedc1f8055eba8a098681fb2fbb7a41956c2cd77163ee82867c647dea
 ```
@@ -302,3 +336,44 @@ I PrintCraft: main::saf: SAF: published /storage/emulated/0/Android/data/…/exp
 
 and the result is a real file on the device: `/sdcard/Download/printcraft-demo (1).pdf`, 4353 bytes
 (the picker added "(1)" because the source was still there). Screenshot: `shots/printcraft-real-saved.png`.
+
+### 7.3 After the sync to upstream `c894928e` (2026-10-24)
+
+Built from `~/artcraft-mobile/printcraft` with the remapped release profile, then
+`~/port-scripts/fix-java-build.sh printcraft` recompiled the Java so `SafBridge` lands in the dex.
+(The script exits 1 on PrintCraft because its final check looks for `safPickMedia`; the build
+itself succeeded and the APK was copied by hand.)
+
+```
+  libmain.so      66,008,832 bytes;  strings | grep -c /Users/ = 0
+  app-release.apk 62,391,495 bytes;  debug-signed;  dex: safPickDocuments, safPickSave,
+                                   safPublish, SafBridge
+  packaged libmain.so           54,399,800 bytes
+```
+
+The old package was uninstalled first, then the new one installed:
+
+```
+$ adb shell dumpsys package ai.storyteller.printcraft | grep -E 'versionName|firstInstallTime'
+    versionName=0.2.1
+    firstInstallTime=2026-10-24 21:31:09
+    lastUpdateTime=2026-10-24 21:31:09
+```
+
+Launch:
+
+```
+$ adb shell am start -W -n ai.storyteller.printcraft/.MainActivity
+Status: ok   LaunchState: COLD   Activity: ai.storyteller.printcraft/.MainActivity   TotalTime: 153
+$ adb shell dumpsys activity activities | grep topResumedActivity
+    topResumedActivity=ActivityRecord{56194510 u0 ai.storyteller.printcraft/.MainActivity t1359 d0}
+$ adb shell pidof ai.storyteller.printcraft
+8430
+I PrintCraft: printcraft-android: android_main entered (PdfCraft 0.13.0)
+I PrintCraft: printcraft-android: SAF file dialogs installed (host_installed=true)
+I PrintCraft: printcraft-android: SELFTEST ok: PDF 1.7 | page (612, 792) pt → raster 612×792 (59311 ink px of 484704, 3 ms) | fonts 1 | text 74 glyphs (expected "PrintCraft on Android") | parser+rasterizer+text: working
+I PrintCraft: printcraft-android: loaded system CJK font /system/fonts/NotoSansCJK-Regular.ttc
+```
+
+Published as `Printcraft-android-arm64.apk` on the `android-v1` release (62 391 495 bytes,
+`2026-10-24T13:35:48Z`), replacing the pre-sync asset uploaded on 2026-10-19.

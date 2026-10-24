@@ -1,10 +1,10 @@
 diff --git a/crates/ocr/src/lib.rs b/crates/ocr/src/lib.rs
-index f026f5b..8dc0f89 100644
+index affa4ab1..84c43d72 100644
 --- a/crates/ocr/src/lib.rs
 +++ b/crates/ocr/src/lib.rs
-@@ -63,6 +63,12 @@ impl Models {
-             dirs.push(exe.join("models"));
-             dirs.push(exe.join("../Resources/models"));
+@@ -69,6 +69,12 @@ impl Models {
+         if let Some(exe) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
+             dirs.extend(Self::dirs_beside_exe(&exe));
          }
 +        // The source-tree fallback below is meaningless on Android -- an APK ships no source
 +        // tree -- and `env!("CARGO_MANIFEST_DIR")` bakes the *builder's* absolute home directory

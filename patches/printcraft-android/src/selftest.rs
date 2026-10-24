@@ -49,6 +49,7 @@ pub fn run() -> String {
         tile: None,
         scale: 1.0,
         tag: 0,
+        preview: false,
     });
     if let Some(error) = &rendered.error {
         return format!("SELFTEST FAILED: rasterizing page 1 failed: {error}");
@@ -65,6 +66,7 @@ pub fn run() -> String {
         tile: None,
         scale: 1.0,
         tag: 0,
+        preview: false,
     });
     let glyphs = text.text.as_ref().map_or(0, |t| t.glyphs.len());
     let text_ok = text.text.as_ref().is_some_and(|t| !t.is_empty());

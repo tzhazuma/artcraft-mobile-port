@@ -37,6 +37,8 @@ mod android {
         pub file_name: String,
         /// `(name, extensions)` pairs added with `add_filter`.
         pub filters: Vec<(String, Vec<String>)>,
+        /// The folder a `set_directory` asked to start in, when one was set.
+        pub directory: Option<PathBuf>,
     }
 
     /// The platform's pickers. Installed once by the app shell; called from the UI thread (the
@@ -124,6 +126,13 @@ mod android {
             self
         }
 
+        /// Kept for parity with `rfd`'s builder. The Android host decides the folder (the app's
+        /// own storage), so the suggestion is recorded but not acted on here.
+        pub fn set_directory(mut self, dir: impl AsRef<std::path::Path>) -> Self {
+            self.request.directory = Some(dir.as_ref().to_path_buf());
+            self
+        }
+
         /// A pick cannot be answered in this frame: see the type's docs and [`AsyncFileDialog`].
         pub fn pick_file(self) -> Option<PathBuf> {
             log::info!("fd: FileDialog::pick_file needs the asynchronous dialog on this platform; answering \"cancelled\"");
@@ -173,6 +182,18 @@ mod android {
         pub fn set_file_name(mut self, name: impl Into<String>) -> Self {
             self.request.file_name = name.into();
             self
+        }
+
+        /// Kept for parity with `rfd`'s builder: Android's pickers do not start in a suggested
+        /// directory (the host chooses where its own pickers start).
+        pub fn set_directory(mut self, dir: impl AsRef<std::path::Path>) -> Self {
+            self.request.directory = Some(dir.as_ref().to_path_buf());
+            self
+        }
+
+        /// A folder the app may write files into (exports, split results, OCR output).
+        pub fn pick_folder(self) -> DialogFuture<Option<FileHandle>> {
+            Box::pin(async move { host()?.folder().map(|path| FileHandle { path }) })
         }
 
         pub fn pick_file(self) -> DialogFuture<Option<FileHandle>> {
