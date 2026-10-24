@@ -408,7 +408,11 @@ fn phone_layout(app: &mut LightcraftApp) {
     app.ui.presets = false;
     app.ui.filmstrip = true;
     // A phone has far less memory for previews than a desktop, and the emulator has less still.
-    app.ui.settings.preview_edge = app.ui.settings.preview_edge.min(1600);
+    // Upstream replaced the old `preview_edge` (a hard 2560 default) with `preview_limit`, where
+    // 0 means Automatic; keep the port's 1600 px cap for both Automatic and larger user limits.
+    if app.ui.settings.preview_limit == 0 || app.ui.settings.preview_limit > 1600 {
+        app.ui.settings.preview_limit = 1600;
+    }
     app.ui.thumb_size = app.ui.thumb_size.max(160.0);
 }
 
@@ -465,6 +469,12 @@ fn services(control: Sender<ControlRequest>, activity: usize, data_dir: PathBuf,
         reveal: Some(Box::new(|_path: &str| Err("there is no file manager on Android".into()))),
         backup_library: None,
         restore_library: None,
+        // Upstream grew the host service surface: off-thread `picker`, dialogs for denoise models,
+        // ICC profiles, keyword lists, slideshow templates and the Lightroom catalogue, external
+        // editor discovery, and the system appearance. Their defaults (all `None`) are right on
+        // Android: the SAF hooks above cover the dialogs the port supports, and leaving `picker`
+        // unset keeps the synchronous pickers serving the commands, as before.
+        ..Services::default()
     }
 }
 
@@ -628,7 +638,10 @@ fn android_main(app: AndroidApp) {
             app.ui.settings.gpu = false;
             lightcraft_ui_egui::i18n::set_language(app.ui.language);
             app.library_problem = problem;
-            app.notices.push(format!("Exports are saved to {}.", exports.display()));
+            // Upstream shows everything in `notices` as a modal "Settings file problem" window, so
+            // this informational line belongs in the status bar, not in a dialog that blocks the
+            // first frame on every launch.
+            app.ui.status = format!("Exports are saved to {}.", exports.display());
             let app = app.with_control(requests);
             let prefs = PrefsWriter::new(&app);
             Ok(Box::new(TouchShell { inner: app, tuned: false, control, palette: false, press: None, exports, prefs }))
