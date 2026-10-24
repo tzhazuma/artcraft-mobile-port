@@ -396,6 +396,15 @@ fn services(control: Sender<ControlRequest>, activity: usize, data_dir: PathBuf,
         // The native menu bar's Edit ▸ Paste and the macOS app actions: not on Android.
         clipboard_text: None,
         app_action: None,
+        // Upstream 0.4.1 added these three hooks for the desktop hosts: the system appearance
+        // service, the non-blocking file dialogs (macOS/Linux sheet dialogs) and the GPU device-lost
+        // message. Android has no system theme service, and its SAF hooks above already return
+        // without blocking the frame, so the command fallback (`pick_files`, `pick_save`, …) is the
+        // right path here. `device_lost` stays unset because the port reports a lost device through
+        // its own `GpuFailureBridge` (set below on the app).
+        system_theme: None,
+        file_dialog_async: None,
+        device_lost: None,
     }
 }
 
