@@ -80,7 +80,9 @@ chmod +x "$INNER"
 # The build itself may legitimately fail; `set -e` is only here to catch setup mistakes, so turn
 # it off before invoking cargo or a compile error would abort before we can report it.
 set +e
-/tmp/artcraft-build-lock.sh "$INNER" > "$LOG" 2>&1
+# The lock lives beside this script, not in /tmp: a tmp cleaner removes it and the build then
+# fails with "No such file or directory" while pretending cargo failed.
+"$(dirname "$0")/build-lock.sh" "$INNER" > "$LOG" 2>&1
 rc=$?
 rm -f "$INNER"
 

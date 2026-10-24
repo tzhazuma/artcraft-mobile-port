@@ -344,7 +344,12 @@ fn phone_workspace() -> WorkspacePrefs {
     let lower = DockNode::Tabs { panels: vec![PanelKind::Timeline, PanelKind::Project, PanelKind::Tools], active: 0 };
     let layout = DockNode::Split { vertical: true, size: SplitSize::Ratio(0.42), a: Box::new(monitor), b: Box::new(lower) };
     WorkspacePrefs {
-        saved: vec![SavedWorkspace { name: "Phone".to_owned(), layout: serde_json::to_value(&layout).unwrap_or_default() }],
+        saved: vec![SavedWorkspace {
+            name: "Phone".to_owned(),
+            layout: serde_json::to_value(&layout).unwrap_or_default(),
+            // No detached windows on a phone: everything lives in the one dock tree.
+            floating: serde_json::Value::Null,
+        }],
         current: "Phone".to_owned(),
     }
 }
