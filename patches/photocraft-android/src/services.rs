@@ -5,7 +5,7 @@
 //!
 //! | Desktop (`apps/photocraft/src/services.rs`) | Android (this module) |
 //! |---|---|
-//! | `rfd` file dialogs | SAF pickers ([`spawn_pick`], [`spawn_publish`]); the picked paths reach the app as an `OsEvent::Open`, the same seam Finder's double-click uses |
+//! | `rfd` file dialogs | the SAF picker behind [`Services::file_dialog`] (the async request/reply seam) plus [`spawn_publish`]; answers are paths the app reads or writes itself |
 //! | `photocraft_io::import` / `export` | the same calls (the engine's own decode/encode path) |
 //! | config dir from `app_dirs` | `AndroidApp::internal_data_path()` |
 //! | `write_atomic` | `photocraft_format::atomic_write`, plus a write-back to the SAF source when the document has one |
@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use photocraft_ui_egui::{OsEvent, Recovered, Services};
+use photocraft_ui_egui::{FileDialogAnswer, FileDialogFn, FileDialogReply, FileDialogRequest, OsEvent, Recoverable, Services};
 
 use crate::saf::{self, Sources};
 
@@ -114,29 +114,6 @@ fn guard<T>(what: &str, f: impl FnOnce() -> Result<T, String>) -> Result<T, Stri
         .unwrap_or_else(|_| Err(format!("{what} failed with an internal error (logged); your open documents are unchanged")))
 }
 
-/// Start the SAF picker in the background; the picked (already copied) paths are queued for the
-/// app's next frame. Returns immediately — the hook's caller gets "no files" and the ordinary
-/// `open_paths` path runs when the file arrives.
-fn spawn_pick(saf: Saf, paths: Paths, incoming: Incoming) {
-    std::thread::spawn(move || {
-        let picked = saf::pick_media(saf.activity, &paths.data, std::time::Duration::from_secs(300));
-        if picked.is_empty() {
-            log::info!("SAF: nothing picked");
-            saf.ctx.request_repaint();
-            return;
-        }
-        let mut files = Vec::with_capacity(picked.len());
-        for (local, uri) in picked {
-            saf.sources.remember(&local, &uri);
-            files.push(local);
-        }
-        log::info!("SAF: {} file(s) picked → opening", files.len());
-        incoming.push(files);
-        // An idle editor does not repaint on its own, so `os_events` would not be polled.
-        saf.ctx.request_repaint();
-    });
-}
-
 /// Ask where a save/export should land, wait for the app to finish writing the scratch file, then
 /// publish it there. Nothing is lost when the user cancels: the file stays in the export directory.
 fn spawn_publish(saf: Saf, scratch: String) {
@@ -193,8 +170,19 @@ fn recovery_services(dir: Option<PathBuf>) -> Services {
             let _ = with_store(&s2, |s| s.discard(id));
         })),
         recover: Some(Box::new(move || {
+            // Upstream now lists entries and lets the shell decode each one on a background
+            // worker; the store already decoded them here, so the loader just hands the document
+            // over.
             let found = with_store(&s3, |s| s.recover()).unwrap_or_default();
-            found.into_iter().map(|(e, doc)| Recovered { key: e.info.key, path: e.info.original_path, doc }).collect()
+            found
+                .into_iter()
+                .map(|(e, doc)| Recoverable {
+                    key: e.info.key,
+                    name: e.info.document_name,
+                    path: e.info.original_path,
+                    load: Box::new(move || Ok(doc)),
+                })
+                .collect()
         })),
         adopt_autosave: Some(Box::new(move |id: u64, key: &str| {
             let _ = with_store(&s4, |s| s.adopt(id, key));
@@ -221,32 +209,54 @@ pub fn services(paths: &Paths, saf: &Saf, incoming: &Incoming) -> Services {
     }
     let prefs_file = config.join("preferences.json");
 
-    // File ▸ Open (and every command that reads one file): the picker runs in the background and
-    // the picked paths come back through `os_events`, so both hooks answer "nothing" now.
-    let pick_open = {
-        let (saf, paths, incoming) = (saf.clone(), paths.clone(), incoming.clone());
-        Box::new(move || -> Option<(String, Result<Vec<u8>, String>)> {
-            spawn_pick(saf.clone(), paths.clone(), incoming.clone());
-            None
-        }) as photocraft_ui_egui::PickOpenFn
-    };
-    let pick_open_paths = {
-        let (saf, paths, incoming) = (saf.clone(), paths.clone(), incoming.clone());
-        Box::new(move || -> Option<Vec<String>> {
-            spawn_pick(saf.clone(), paths.clone(), incoming.clone());
-            None
-        }) as photocraft_ui_egui::PickOpenPathsFn
-    };
-
-    // Save and Save As: the app writes a scratch file in the export directory; the watcher asks
-    // where it should land and publishes it there once it is complete.
-    let pick_save = {
-        let (saf, dir) = (saf.clone(), paths.exports.clone());
-        Box::new(move |suggested: &str| -> Option<String> {
-            let scratch = export_path(&dir, suggested);
-            spawn_publish(saf.clone(), scratch.clone());
-            Some(scratch)
-        }) as photocraft_ui_egui::PickSaveFn
+    // File dialogs: upstream now asks through `Services::file_dialog` (a request, a reply sent from
+    // any thread) instead of the old synchronous `pick_open`/`pick_save` hooks. The SAF pickers run
+    // on their own thread — exactly what this API wants — and answer through the app's own reply
+    // channel. The app then reads the copied files / writes the scratch path itself.
+    let file_dialog = {
+        let (saf, paths) = (saf.clone(), paths.clone());
+        let show: FileDialogFn = Box::new(move |request: FileDialogRequest, _parent: Option<&eframe::Frame>, reply: FileDialogReply| {
+            let (saf, paths) = (saf.clone(), paths.clone());
+            std::thread::spawn(move || {
+                let answer = match request {
+                    FileDialogRequest::Open { multiple, .. } => {
+                        let picked = saf::pick_media(saf.activity, &paths.data, std::time::Duration::from_secs(300));
+                        if picked.is_empty() {
+                            None
+                        } else {
+                            let mut files = Vec::with_capacity(picked.len());
+                            for (local, uri) in picked {
+                                saf.sources.remember(&local, &uri);
+                                files.push(local);
+                            }
+                            // A command that reads one file takes the first (matching the desktop's
+                            // single-selection dialog); File ▸ Open keeps every picked file.
+                            if !multiple {
+                                files.truncate(1);
+                            }
+                            log::info!("SAF: {} file(s) picked", files.len());
+                            saf.ctx.request_repaint();
+                            Some(FileDialogAnswer::Paths(files))
+                        }
+                    }
+                    // Settings paths, "save into a folder" commands: the app's own export
+                    // directory, the one writable folder it has (SAF trees are `content://` and
+                    // the engine writes plain paths).
+                    FileDialogRequest::Folder { .. } => {
+                        Some(FileDialogAnswer::FolderTo(paths.exports.to_string_lossy().into_owned()))
+                    }
+                    // Save/Save As/Export: answer a scratch path in the export directory and ask
+                    // where it should land; the watcher publishes the finished file there.
+                    FileDialogRequest::Save { suggested } => {
+                        let scratch = export_path(&paths.exports, &suggested);
+                        spawn_publish(saf.clone(), scratch.clone());
+                        Some(FileDialogAnswer::SaveTo(scratch))
+                    }
+                };
+                reply.send(answer);
+            });
+        });
+        show
     };
 
     // Every document write goes through here: crash-safe (temp file + fsync + rename), and a
@@ -286,8 +296,10 @@ pub fn services(paths: &Paths, saf: &Saf, incoming: &Incoming) -> Services {
     Services {
         // The engine's own importer and exporter: the desktop, the CLI, the web build and Android
         // all decode and encode through `photocraft_io`.
-        import: Some(Box::new(|name: &str, bytes: &[u8]| {
-            guard("Open", || photocraft_io::import(name, bytes).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string()))
+        import: Some(Box::new(|name: &str, bytes: &[u8], options: &photocraft_io::ImportOptions| {
+            // Upstream added per-call import options (SVG group depth, …); use them so Android
+            // imports exactly what the desktop does.
+            guard("Open", || photocraft_io::import_with_options(name, bytes, options).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string()))
         })),
         export: Some(Box::new(|doc: &photocraft_doc::Document, path: &str, settings: &photocraft_ui_egui::ExportSettings| {
             let mut opts = photocraft_io::ExportOptions::default();
@@ -302,9 +314,7 @@ pub fn services(paths: &Paths, saf: &Saf, incoming: &Incoming) -> Services {
             opts.xmp = if settings.xmp_all { photocraft_io::XmpEmbed::All } else { photocraft_io::XmpEmbed::None };
             guard("Export", || photocraft_io::export(doc, path, &opts).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string()))
         })),
-        pick_open: Some(pick_open),
-        pick_open_paths: Some(pick_open_paths),
-        pick_save: Some(pick_save),
+        file_dialog: Some(file_dialog),
         write: Some(write),
         // Screenshots (`ui.screenshot`) and `ui.render` encode here.
         encode_png: Some(Box::new(|w: u32, h: u32, rgba: &[u8]| {
